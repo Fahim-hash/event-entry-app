@@ -11,7 +11,7 @@ st.set_page_config(page_title="Event Cloud System", page_icon="☁️", layout="
 # ইউজার ডাটাবেস (Role সহ)
 USERS = {
     "admin": {
-        "password": "1234",
+        "password": "Fahim1177",
         "role": "admin",
         "name": "Super Admin"
     },
@@ -373,3 +373,4 @@ elif menu == "📂 Class Section List":
 elif menu == "📊 Live Status":
     st.title("📊 Live Feed")
     st.dataframe(st.session_state.df[st.session_state.df['Entry_Status'] == 'Done'][['Name', 'Entry_Time', 'Bus_Number', 'T_Shirt_Size']])
+
