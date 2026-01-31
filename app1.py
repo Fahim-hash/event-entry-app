@@ -8,22 +8,16 @@ st.set_page_config(page_title="Event Cloud System", page_icon="☁️", layout="
 
 # ==================== 1. ROLE BASED LOGIN SYSTEM ====================
 
-# ইউজার ডাটাবেস (Role সহ)
 USERS = {
     "admin": {
-        "password": "Fahim1177",
+        "password": "1234",
         "role": "admin",
         "name": "Super Admin"
-    },
-    "gate": {
-        "password": "entry26",
-        "role": "volunteer",
-        "name": "Gate Volunteer"
     },
     "helpdesk": {
         "password": "help123",
         "role": "volunteer",
-        "name": "Help Desk"
+        "name": "Entry"
     }
 }
 
@@ -54,7 +48,7 @@ if not st.session_state.logged_in:
         st.text_input("Password", type="password", key="password")
         st.button("Login", on_click=check_login)
     with c2:
-        st.info("**WELCOME**")
+        st.info("🔑 **Default Passwords:**\n\n👤 **admin:** 1234\n\n👤 **gate:** entry26")
     st.stop()
 
 # ==================== 2. GOOGLE SHEETS CONNECTION ====================
@@ -141,7 +135,6 @@ def assign_bus_bulk(group_type, group_value, bus_num):
 
 # ==================== 3. UI & NAVIGATION ====================
 
-# Sidebar Header
 st.sidebar.title(f"👤 {st.session_state.user_name}")
 st.sidebar.caption(f"Role: {st.session_state.user_role.upper()}")
 
@@ -150,19 +143,16 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.stock = load_stock()
     st.rerun()
 
-# --- ROLE BASED MENU ---
+# --- MENU PERMISSIONS ---
 if st.session_state.user_role == 'admin':
-    # Admin gets EVERYTHING
     menu_options = ["🔍 Dashboard & Search", "👕 T-Shirt Stock", "🚌 Bus Distribution", "👨‍🏫 Teachers & Guests", "🎗️ Staff (Vol/Org)", "📂 Class Section List", "📊 Live Status"]
 else:
-    # Volunteer gets LIMITED access
     menu_options = ["🔍 Dashboard & Search", "📊 Live Status"]
 
 menu = st.sidebar.radio("Go to:", menu_options)
-
 st.sidebar.markdown("---")
 
-# Add New Person (ONLY FOR ADMIN)
+# Add Person (ADMIN ONLY)
 if st.session_state.user_role == 'admin':
     with st.sidebar.expander("➕ Add New Person"):
         with st.form("add_person_form"):
@@ -181,7 +171,7 @@ if st.sidebar.button("🔴 Logout"):
 
 # ==================== PAGE CONTENT ====================
 
-# --- OPTION 1: DASHBOARD & SEARCH (Main Work Area) ---
+# --- OPTION 1: DASHBOARD & SEARCH ---
 if menu == "🔍 Dashboard & Search":
     st.title("🚀 Event Dashboard")
     
@@ -198,7 +188,7 @@ if menu == "🔍 Dashboard & Search":
     
     st.markdown("---")
     
-    # SEARCH SECTION
+    # SEARCH
     query = st.text_input("🔍 Search (Name, Ticket, Roll):", placeholder="Type Name or Ticket Number...")
     
     if query:
@@ -216,70 +206,75 @@ if menu == "🔍 Dashboard & Search":
             
             row = st.session_state.df.loc[idx]
             
-            # --- PROFILE CARD ---
+            # PROFILE CARD
             with st.container(border=True):
-                st.subheader(f"{row['Name']} ({row['Role']})")
+                st.subheader(f"{row['Name']}")
+                st.caption(f"Current Role: **{row['Role']}**") # Show Current Role
                 st.write(f"🎟 Ticket: **{row['Ticket_Number']}** | 📞 Phone: `{row['Spot Phone']}`")
-                if st.session_state.user_role == 'admin':
-                    st.write(f"🚌 Bus: **{row['Bus_Number']}**")
                 
-                # Stock Logic Display
                 sz = row['T_Shirt_Size']
                 is_given = row['T_Shirt_Collected'] == 'Yes'
-                rem_stock = st.session_state.stock.get(sz, 0)
                 
                 col_a, col_b = st.columns(2)
                 if is_given: col_a.success(f"👕 {sz} (GIVEN)")
-                else:
-                    if rem_stock > 0: col_a.info(f"👕 {sz} (Available: {rem_stock})")
-                    else: col_a.error(f"👕 {sz} (OUT OF STOCK)")
+                else: col_a.info(f"👕 {sz} (Available)")
                 
                 if row['Entry_Status'] == 'Done': col_b.success("✅ ENTERED")
                 else: col_b.warning("⏳ PENDING")
 
-            # --- ACTION FORM (DIFFERENT FOR ADMIN vs VOLUNTEER) ---
-            st.markdown("### 📝 Action")
+            # EDIT FORM
+            st.markdown("### 📝 Edit Details")
             with st.form("action_form"):
                 
-                # ADMIN gets full edit access
+                # ADMIN gets FULL access (Role, Bus, etc.)
                 if st.session_state.user_role == 'admin':
                     c1, c2 = st.columns(2)
                     n_name = c1.text_input("Name", value=row['Name'])
                     n_phone = c2.text_input("Phone", value=row['Spot Phone'])
-                    c3, c4 = st.columns(2)
+                    
+                    c3, c4, c5 = st.columns(3)
                     n_ticket = c3.text_input("Ticket Number", value=row['Ticket_Number'])
-                    n_bus = c4.selectbox("Bus", ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"], index=["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"].index(row['Bus_Number']) if row['Bus_Number'] in ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"] else 0)
+                    
+                    # 🔥 NEW: ROLE CHANGE OPTION 🔥
+                    role_opts = ["Student", "Volunteer", "Organizer", "Teacher", "Guest"]
+                    curr_role_idx = role_opts.index(row['Role']) if row['Role'] in role_opts else 0
+                    n_role = c4.selectbox("Role", role_opts, index=curr_role_idx)
+                    
+                    bus_opts = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
+                    n_bus = c5.selectbox("Bus", bus_opts, index=bus_opts.index(row['Bus_Number']) if row['Bus_Number'] in bus_opts else 0)
+                    
                     st.markdown("---")
                     ct1, ct2, ct3 = st.columns(3)
                     n_size = ct1.selectbox("Size", ["S", "M", "L", "XL", "XXL"], index=["S", "M", "L", "XL", "XXL"].index(sz) if sz in ["S", "M", "L", "XL", "XXL"] else 2)
                     
-                # VOLUNTEER gets only Status Checkbox (Read Only Data)
                 else:
+                    # VOLUNTEER gets READ ONLY
                     st.warning("🔒 View Only Mode (Volunteer)")
                     n_name = row['Name']
                     n_phone = row['Spot Phone']
                     n_ticket = row['Ticket_Number']
+                    n_role = row['Role']
                     n_bus = row['Bus_Number']
-                    n_size = sz # Volunteer cannot change size, only give
-                    ct2, ct3 = st.columns(2) # Layout for volunteer
+                    n_size = sz
+                    ct2, ct3 = st.columns(2)
                 
-                # Common Checkboxes
+                # Checkboxes
                 n_given = ct2.checkbox("✅ T-Shirt GIVEN", value=is_given)
                 n_enter = ct3.checkbox("✅ Mark ENTERED", value=(row['Entry_Status']=='Done'))
                 
                 if st.form_submit_button("💾 Update Status"):
-                    # Admin can update details, Volunteer only status
                     if st.session_state.user_role == 'admin':
                         if not n_phone.strip() or not n_ticket.strip():
-                            st.error("Phone and Ticket cannot be empty!")
+                            st.error("Fields cannot be empty!")
                             st.stop()
                         st.session_state.df.at[idx, 'Name'] = n_name
                         st.session_state.df.at[idx, 'Spot Phone'] = n_phone
                         st.session_state.df.at[idx, 'Ticket_Number'] = n_ticket
+                        st.session_state.df.at[idx, 'Role'] = n_role  # Save New Role
                         st.session_state.df.at[idx, 'Bus_Number'] = n_bus
                         st.session_state.df.at[idx, 'T_Shirt_Size'] = n_size
                     
-                    # Stock Logic (Everyone can distribute)
+                    # Stock Logic
                     if n_given and not is_given:
                         st.session_state.stock[sz] -= 1
                         save_stock()
@@ -299,27 +294,26 @@ if menu == "🔍 Dashboard & Search":
         else:
             st.warning("No record found!")
 
-# --- OPTION 2: STOCK (ADMIN ONLY) ---
+# --- OPTION 2: STOCK (ADMIN) ---
 elif menu == "👕 T-Shirt Stock":
     st.title("👕 Stock Management")
     dist = st.session_state.df[st.session_state.df['T_Shirt_Collected'] == 'Yes']['T_Shirt_Size'].value_counts()
-    
     cols = st.columns(5)
     for s in ["S", "M", "L", "XL", "XXL"]:
         rem = st.session_state.stock.get(s, 0) - dist.get(s, 0)
         cols[cols.index(cols[0])+["S", "M", "L", "XL", "XXL"].index(s)].metric(s, rem, delta=f"Given: {dist.get(s, 0)}", delta_color="inverse")
     
     st.markdown("---")
-    with st.form("stk_form"):
+    with st.form("stk"):
         c1, c2 = st.columns(2)
         sz = c1.selectbox("Size", ["S", "M", "L", "XL", "XXL"])
-        q = c2.number_input("New Total Quantity", value=st.session_state.stock.get(sz, 0))
-        if st.form_submit_button("Update Stock"):
+        q = c2.number_input("New Qty", value=st.session_state.stock.get(sz, 0))
+        if st.form_submit_button("Update"):
             st.session_state.stock[sz] = q
             save_stock()
             st.rerun()
 
-# --- OPTION 3: BUS (ADMIN ONLY) ---
+# --- OPTION 3: BUS (ADMIN) ---
 elif menu == "🚌 Bus Distribution":
     st.title("🚌 Bus Management")
     cols = st.columns(4)
@@ -327,51 +321,33 @@ elif menu == "🚌 Bus Distribution":
     for i, b in enumerate(buses):
         c = len(st.session_state.df[st.session_state.df['Bus_Number'] == b])
         cols[i].metric(b, f"{c}/{BUS_CAPACITY}")
-        cols[i].progress(min(c/BUS_CAPACITY, 1.0))
         if c > BUS_CAPACITY: cols[i].error("OVERFLOW")
+        else: cols[i].progress(min(c/BUS_CAPACITY, 1.0))
     
     st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
     t = c1.selectbox("Type", ["Class", "Role"])
-    grp_opts = sorted(st.session_state.df['Class'].unique()) if t=="Class" else ["Teacher", "Volunteer", "Organizer", "Guest", "Student"]
-    grp = c2.selectbox("Group", ["Select..."] + list(grp_opts))
-    bus = c3.selectbox("Bus", buses)
-    if c4.button("🚀 Assign") and grp != "Select...":
-        assign_bus_bulk(t, grp, bus)
+    opts = sorted(st.session_state.df['Class'].unique()) if t=="Class" else ["Teacher", "Volunteer", "Organizer", "Guest", "Student"]
+    g = c2.selectbox("Group", ["Select..."] + list(opts))
+    b = c3.selectbox("Bus", buses)
+    if c4.button("Assign") and g!="Select...":
+        assign_bus_bulk(t, g, b)
         st.success("Moved!")
         st.rerun()
     
     tabs = st.tabs(["Unassigned"] + buses)
     with tabs[0]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'].isin(['Unassigned', ''])][['Name', 'Class', 'Role']])
     for i, b in enumerate(buses):
-        with tabs[i+1]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'] == b][['Name', 'Role', 'Spot Phone']])
+        with tabs[i+1]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'] == b][['Name', 'Role']])
 
-# --- OPTION 4-6: LISTS (ADMIN ONLY) ---
+# --- OPTION 4-6: LISTS (ADMIN) ---
 elif menu == "👨‍🏫 Teachers & Guests":
-    st.title("👨‍🏫 Teachers & Guests")
-    df_t = st.session_state.df[st.session_state.df['Role'].isin(["Teacher", "Guest"])]
-    st.dataframe(df_t[['Name', 'Role', 'Bus_Number', 'Spot Phone']])
-    
-    st.subheader("Quick Bus Assign")
-    c1, c2, c3 = st.columns([2, 1, 1])
-    tn = c1.selectbox("Name", ["Select..."] + df_t['Name'].tolist())
-    tb = c2.selectbox("Bus", ["Bus 1", "Bus 2", "Bus 3", "Bus 4", "Unassigned"])
-    if c3.button("Update") and tn != "Select...":
-        idx = st.session_state.df[st.session_state.df['Name'] == tn].index[0]
-        st.session_state.df.at[idx, 'Bus_Number'] = tb
-        save_data()
-        st.rerun()
-
+    st.dataframe(st.session_state.df[st.session_state.df['Role'].isin(["Teacher", "Guest"])][['Name', 'Role', 'Bus_Number', 'Spot Phone']])
 elif menu == "🎗️ Staff (Vol/Org)":
-    st.title("🎗️ Staff")
     st.dataframe(st.session_state.df[st.session_state.df['Role'].isin(["Volunteer", "Organizer"])][['Name', 'Role', 'Bus_Number']])
-
 elif menu == "📂 Class Section List":
     cl = st.selectbox("Class", ["Select"] + sorted(st.session_state.df['Class'].unique()))
     if cl != "Select": st.dataframe(st.session_state.df[st.session_state.df['Class'] == cl])
 
 elif menu == "📊 Live Status":
-    st.title("📊 Live Feed")
-    st.dataframe(st.session_state.df[st.session_state.df['Entry_Status'] == 'Done'][['Name', 'Entry_Time', 'Bus_Number', 'T_Shirt_Size']])
-
-
+    st.dataframe(st.session_state.df[st.session_state.df['Entry_Status'] == 'Done'][['Name', 'Entry_Time', 'Bus_Number']])
