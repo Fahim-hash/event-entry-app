@@ -10,7 +10,7 @@ st.set_page_config(page_title="Event Cloud System", page_icon="☁️", layout="
 
 USERS = {
     "admin": {
-        "password": "1234",
+        "password": "Fahim123",
         "role": "admin",
         "name": "Super Admin"
     },
@@ -48,7 +48,7 @@ if not st.session_state.logged_in:
         st.text_input("Password", type="password", key="password")
         st.button("Login", on_click=check_login)
     with c2:
-        st.info("🔑 **Default Passwords:**\n\n👤 **admin:** 1234\n\n👤 **gate:** entry26")
+        st.info("🔑 ")
     st.stop()
 
 # ==================== 2. GOOGLE SHEETS CONNECTION ====================
@@ -351,3 +351,4 @@ elif menu == "📂 Class Section List":
 
 elif menu == "📊 Live Status":
     st.dataframe(st.session_state.df[st.session_state.df['Entry_Status'] == 'Done'][['Name', 'Entry_Time', 'Bus_Number']])
+
