@@ -54,7 +54,7 @@ if not st.session_state.logged_in:
         st.text_input("Password", type="password", key="password")
         st.button("Login", on_click=check_login)
     with c2:
-        st.info("**Default Credentials:**\n\n👤 **Admin:** admin / 1234\n\n👤 **Volunteer:** gate / entry26")
+        st.info("**WELCOME**")
     st.stop()
 
 # ==================== 2. GOOGLE SHEETS CONNECTION ====================
@@ -373,4 +373,5 @@ elif menu == "📂 Class Section List":
 elif menu == "📊 Live Status":
     st.title("📊 Live Feed")
     st.dataframe(st.session_state.df[st.session_state.df['Entry_Status'] == 'Done'][['Name', 'Entry_Time', 'Bus_Number', 'T_Shirt_Size']])
+
 
