@@ -80,7 +80,7 @@ if not st.session_state.logged_in:
 
 # ==================== 4. MAIN APP LAYOUT ====================
 st.sidebar.title("⚡ Menu")
-menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 Class Lists", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
+menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 Class Lists", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
 
 if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -109,7 +109,6 @@ if menu == "🔍 Search & Entry":
             sz = row['T_Shirt_Size']
             rem = st.session_state.stock.get(sz, 0)
             
-            # Stock Warning
             if not is_kit:
                 if rem == 0: st.error(f"❌ OUT OF STOCK! No {sz} size available.")
                 elif rem <= 5: st.warning(f"⚠️ LOW STOCK ALERT: Only {rem} remaining!")
@@ -133,7 +132,6 @@ if menu == "🔍 Search & Entry":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Single Unassign
                 if row['Bus_Number'] != "Unassigned":
                     if st.button(f"❌ Unassign from {row['Bus_Number']}", type="secondary", use_container_width=True):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
@@ -240,7 +238,58 @@ elif menu == "📜 Class Lists":
     c3.metric("Pending", len(v_df)-len(v_df[v_df['Entry_Status']=='Done']))
     st.dataframe(v_df[['Name', 'Class', 'Roll', 'Spot Phone', 'Entry_Status']], use_container_width=True)
 
-# --- TAB 4: BUS MANAGER ---
+# --- TAB 4: ABSENT LIST (NEW FEATURE) ---
+elif menu == "🚫 Absent List":
+    st.title("🚫 Absentee List")
+    
+    # Filter Logic: Entry_Status is NOT Done
+    absent_df = st.session_state.df[st.session_state.df['Entry_Status'] != 'Done']
+    
+    c1, c2 = st.columns(2)
+    c1.metric("Total Absent", len(absent_df))
+    c2.metric("Total Registered", len(st.session_state.df))
+    
+    # Class Filter
+    classes = sorted([c for c in absent_df['Class'].unique() if c not in ['', 'N/A']])
+    sel_cls = st.selectbox("Filter Absent by Class:", ["All"] + classes)
+    
+    if sel_cls != "All":
+        view_absent = absent_df[absent_df['Class'] == sel_cls]
+    else:
+        view_absent = absent_df
+        
+    st.dataframe(view_absent[['Name', 'Class', 'Role', 'Spot Phone', 'Ticket_Number']], use_container_width=True)
+    
+    # 🔥 PRINT ABSENT LIST 🔥
+    if st.button("🖨️ Print Absent List (A4)"):
+        html_content = f"""
+        <html>
+        <head>
+            <style>
+                @page {{ size: A4; margin: 10mm; }}
+                body {{ font-family: 'Arial', sans-serif; font-size: 12px; }}
+                h1 {{ text-align: center; text-decoration: underline; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+                th, td {{ border: 1px solid black; padding: 6px; text-align: left; }}
+                th {{ background-color: #f0f0f0; }}
+            </style>
+        </head>
+        <body>
+            <h1>Absent List - {sel_cls}</h1>
+            <p>Total Absent: {len(view_absent)} &nbsp;|&nbsp; Generated: {datetime.now().strftime('%H:%M %p')}</p>
+            <table>
+                <tr>
+                    <th>SL</th><th>Name</th><th>Class</th><th>Phone</th><th>Ticket</th>
+                </tr>
+        """
+        for i, (_, r) in enumerate(view_absent.iterrows(), 1):
+            html_content += f"<tr><td>{i}</td><td>{r['Name']}</td><td>{r['Class']}</td><td>{r['Spot Phone']}</td><td>{r['Ticket_Number']}</td></tr>"
+        
+        html_content += "</table></body></html>"
+        
+        st.download_button("⬇️ Download PDF Ready", html_content, f"Absent_{sel_cls}.html", "text/html")
+
+# --- TAB 5: BUS MANAGER ---
 elif menu == "🚌 Bus Manager":
     st.title("🚌 Fleet Management")
     
@@ -252,7 +301,6 @@ elif menu == "🚌 Bus Manager":
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free")
         cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     
-    # Bulk Unassign
     st.markdown("---")
     with st.expander("🗑️ Mass Unassign Tools"):
         b_c1, b_c2 = st.columns(2)
@@ -275,74 +323,21 @@ elif menu == "🚌 Bus Manager":
                     conn.update(worksheet="Data", data=st.session_state.df)
                     st.success("Done!"); time.sleep(1); st.rerun()
     
-    # 🔥 A4 PRINT MANIFEST SECTION 🔥
     st.markdown("---")
     st.subheader("🖨️ A4 Print Manifest")
-    
     p_bus = st.selectbox("Select Bus to Print:", ["All Buses"] + buses)
-    
     if st.button("📄 Generate A4 PDF Ready File"):
-        html_content = """
-        <html>
-        <head>
-            <style>
-                @page { size: A4; margin: 10mm; }
-                body { font-family: 'Arial', sans-serif; font-size: 12px; }
-                .bus-page { page-break-after: always; width: 100%; }
-                h1 { text-align: center; font-size: 18px; text-decoration: underline; margin-bottom: 5px; }
-                .meta { text-align: center; margin-bottom: 20px; font-size: 14px; }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { border: 1px solid black; padding: 6px; text-align: left; }
-                th { background-color: #f0f0f0; font-weight: bold; }
-            </style>
-        </head>
-        <body>
-        """
-        
+        html_content = """<html><head><style>@page { size: A4; margin: 10mm; } body { font-family: 'Arial'; font-size: 12px; } .bus-page { page-break-after: always; } h1 { text-align: center; font-size: 18px; text-decoration: underline; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid black; padding: 6px; } th { background-color: #f0f0f0; }</style></head><body>"""
         target_buses = buses if p_bus == "All Buses" else [p_bus]
-        
         for bus in target_buses:
             b_df = st.session_state.df[st.session_state.df['Bus_Number'] == bus]
             if not b_df.empty:
-                html_content += f"""
-                <div class="bus-page">
-                    <h1>{bus} Passenger Manifest</h1>
-                    <div class="meta">
-                        <b>Total Pax:</b> {len(b_df)} &nbsp;|&nbsp; 
-                        <b>Date:</b> {datetime.now().strftime('%d-%b-%Y')} &nbsp;|&nbsp; 
-                        <b>Supervisor Sign:</b> ___________________
-                    </div>
-                    <table>
-                        <tr>
-                            <th style="width:5%">SL</th>
-                            <th style="width:30%">Name</th>
-                            <th style="width:15%">Role</th>
-                            <th style="width:15%">Phone</th>
-                            <th style="width:15%">Sign (IN)</th>
-                            <th style="width:15%">Sign (OUT)</th>
-                        </tr>
-                """
+                html_content += f"<div class='bus-page'><h1>{bus} Manifest ({len(b_df)})</h1><p>Supervisor: ___________</p><table><tr><th>SL</th><th>Name</th><th>Role</th><th>Phone</th><th>Sign (IN)</th><th>Sign (OUT)</th></tr>"
                 for i, (_, r) in enumerate(b_df.iterrows(), 1):
-                    html_content += f"""
-                        <tr>
-                            <td>{i}</td>
-                            <td>{r['Name']}</td>
-                            <td>{r['Role']}</td>
-                            <td>{r['Spot Phone']}</td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                    """
+                    html_content += f"<tr><td>{i}</td><td>{r['Name']}</td><td>{r['Role']}</td><td>{r['Spot Phone']}</td><td></td><td></td></tr>"
                 html_content += "</table></div>"
-        
         html_content += "</body></html>"
-        
-        st.download_button(
-            label="⬇️ Download A4 Print File",
-            data=html_content,
-            file_name=f"A4_Manifest_{p_bus}_{int(time.time())}.html",
-            mime="text/html"
-        )
+        st.download_button("⬇️ Download A4 Print File", html_content, f"A4_Manifest_{p_bus}.html", "text/html")
     
     st.markdown("---")
     st.subheader("🚀 Smart Auto-Assign")
@@ -364,7 +359,7 @@ elif menu == "🚌 Bus Manager":
         conn.update(worksheet="Data", data=st.session_state.df)
         st.success(f"Assigned {cnt}!"); st.rerun()
 
-# --- TAB 5: DASHBOARD ---
+# --- TAB 6: DASHBOARD ---
 elif menu == "📊 Dashboard":
     st.title("📊 Event Stats")
     df = st.session_state.df
@@ -374,7 +369,7 @@ elif menu == "📊 Dashboard":
     c3.metric("Kits", len(df[df['T_Shirt_Collected']=='Yes']))
     st.bar_chart(df['T_Shirt_Size'].value_counts())
 
-# --- TAB 6: ADMIN DATA ---
+# --- TAB 7: ADMIN DATA ---
 elif menu == "📝 Admin Data":
     st.title("📝 Full Database")
     st.dataframe(st.session_state.df)
