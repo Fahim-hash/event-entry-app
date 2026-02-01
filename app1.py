@@ -83,7 +83,7 @@ if not st.session_state.logged_in:
             else: st.error("Wrong Password!")
     st.stop()
 
-# ==================== 4. LIVE DIGITAL TIMER ====================
+# ==================== 4. LIVE TIMER (HH:MM:SS ONLY) ====================
 st.sidebar.title("⚡ Menu")
 
 # Target: Feb 3, 2026 07:00:00 GMT+6
@@ -105,15 +105,15 @@ timer_html = f"""
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }}
     .label {{ font-family: sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; color: #00ff88; }}
-    .time {{ font-size: 24px; font-weight: bold; letter-spacing: 1px; color: #fff; }}
-    .sub-labels {{ font-size: 9px; opacity: 0.6; margin-top: 2px; font-family: sans-serif; }}
+    .time {{ font-size: 28px; font-weight: bold; letter-spacing: 1px; color: #fff; }}
+    .sub-labels {{ font-size: 10px; opacity: 0.6; margin-top: 2px; font-family: sans-serif; }}
 </style>
 </head>
 <body>
     <div class="timer-container">
         <div class="label">EVENT COUNTDOWN</div>
-        <div id="countdown" class="time">-- : -- : -- : --</div>
-        <div class="sub-labels">DAYS &nbsp; HOURS &nbsp; MIN &nbsp; SEC</div>
+        <div id="countdown" class="time">-- : -- : --</div>
+        <div class="sub-labels">HOURS &nbsp;&nbsp; MIN &nbsp;&nbsp; SEC</div>
     </div>
 
 <script>
@@ -125,22 +125,21 @@ function updateTimer() {{
         const diff = target - now;
 
         if (diff < 0) {{
-            document.getElementById("countdown").innerHTML = "EVENT STARTED!";
+            document.getElementById("countdown").innerHTML = "STARTED!";
             return;
         }}
 
-        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        // Calculate Total Hours instead of Days
+        const totalHours = Math.floor(diff / (1000 * 60 * 60));
         const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const s = Math.floor((diff % (1000 * 60)) / 1000);
 
-        const dd = d < 10 ? "0" + d : d;
-        const hh = h < 10 ? "0" + h : h;
+        const hh = totalHours < 10 ? "0" + totalHours : totalHours;
         const mm = m < 10 ? "0" + m : m;
         const ss = s < 10 ? "0" + s : s;
 
-        // Digital Clock Format: DD : HH : MM : SS
-        document.getElementById("countdown").innerHTML = dd + " : " + hh + " : " + mm + " : " + ss;
+        // Format: HH : MM : SS
+        document.getElementById("countdown").innerHTML = hh + " : " + mm + " : " + ss;
     }}, 1000);
 }}
 updateTimer();
@@ -193,7 +192,7 @@ if menu == "🔍 Search & Entry":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # FIXED UNASSIGN BUTTON
+                # UNASSIGN FIX with Key
                 if row['Bus_Number'] != "Unassigned":
                     if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
@@ -299,7 +298,6 @@ elif menu == "🚌 Bus Manager":
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     st.markdown("---")
     
-    # FIXED BULK UNASSIGN
     with st.expander("🗑️ Bulk Unassign Tools"):
         st.subheader("Option: Empty a Bus")
         target_bus = st.selectbox("Select Bus to Empty:", buses)
@@ -342,18 +340,18 @@ elif menu == "📊 Dashboard":
     if not st.session_state.df.empty:
         df = st.session_state.df
         
-        # 🔥 Group 1: Students & Team
+        # 🔥 Group 1: Students + Team
         grp1 = ['Student', 'Organizer', 'Volunteer']
         cnt1 = len(df[df['Role'].isin(grp1)])
 
-        # 🔥 Group 2: Teachers & Staff
+        # 🔥 Group 2: Teachers + Staff
         grp2 = ['Teacher', 'College Staff', 'Principal', 'College Head']
         cnt2 = len(df[df['Role'].isin(grp2)])
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total Registered", len(df))
-        c2.metric("Students + Team", cnt1, help="Student, Org, Vol")
-        c3.metric("Faculty & Staff", cnt2, help="Teacher, Staff, Principal")
+        c2.metric("Students + Team", cnt1, help="Student, Organizer, Volunteer")
+        c3.metric("Faculty & Staff", cnt2, help="Teacher, Staff, Principal, Head")
         c4.metric("Checked In", len(df[df['Entry_Status']=='Done']))
         
         st.markdown("### T-Shirt Distribution")
