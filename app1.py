@@ -26,7 +26,6 @@ st.markdown("""
     }
     .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; color: white; }
     .role-badge { background: #FFD700; color: black; padding: 2px 10px; border-radius: 10px; font-weight: bold; font-size: 12px; }
-    .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 8px 0; font-size: 14px; color: #ccc; }
     
     /* Input Fields Style */
     input[type="text"] {
@@ -37,6 +36,10 @@ st.markdown("""
 
 # ==================== 2. DATA ENGINE ====================
 conn = st.connection("gsheets", type=GSheetsConnection)
+
+# Constants
+BUS_CAPACITY = 45
+STUDENT_LIMIT = 43  # 43 Students + 1 Org + 1 Teacher = 45
 
 def load_data():
     try:
@@ -86,7 +89,7 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.stock = load_stock()
     st.rerun()
 
-# --- TAB 1: SEARCH & ENTRY (WITH ROLE ADDER) ---
+# --- TAB 1: SEARCH & ENTRY ---
 if menu == "🔍 Search & Entry":
     st.title("🔍 Search, Edit & Entry")
     
@@ -114,7 +117,6 @@ if menu == "🔍 Search & Entry":
 
             col1, col2 = st.columns([1, 1.5])
             
-            # --- LEFT: ID CARD ---
             with col1:
                 border_c = "#00ff88" if is_ent else "#ff4b4b"
                 st.markdown(f"""
@@ -125,138 +127,167 @@ if menu == "🔍 Search & Entry":
                     <br><span class="role-badge">{row['Role']}</span>
                     <div class="id-name">{row['Name']}</div>
                     <div class="info-row"><span>Ticket:</span> <b>{row['Ticket_Number']}</b></div>
-                    <div class="info-row"><span>Phone:</span> <b>{row['Spot Phone']}</b></div>
                     <div class="info-row"><span>Bus:</span> <b>{row['Bus_Number']}</b></div>
                     <div style="margin-top:10px; border:1px solid #555; padding:8px; border-radius:8px;">
-                        👕 Size: <b>{sz}</b> <br>
-                        Status: {'✅ GIVEN' if is_kit else f'📦 Stock: {rem}'}
+                        👕 Size: <b>{sz}</b> | Status: {'✅ GIVEN' if is_kit else f'📦 {rem} Left'}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
-            # --- RIGHT: EDIT & CONTROLS ---
             with col2:
                 with st.container(border=True):
                     st.subheader("✏️ Edit Information")
                     
-                    # 🔥 NEW: ROLE ADDER/EDITOR 🔥
                     c_name, c_role = st.columns([1.5, 1])
                     new_name = c_name.text_input("Name", value=row['Name'])
-                    
-                    role_options = ["Student", "Volunteer", "Teacher", "Organizer", "Guest", "Staff"]
-                    curr_role_idx = role_options.index(row['Role']) if row['Role'] in role_options else 0
-                    new_role = c_role.selectbox("Assign Role", role_options, index=curr_role_idx)
+                    role_opts = ["Student", "Volunteer", "Teacher", "Organizer", "Staff"]
+                    new_role = c_role.selectbox("Role", role_opts, index=role_opts.index(row['Role']) if row['Role'] in role_opts else 0)
                     
                     c_ph, c_tk = st.columns(2)
-                    new_phone = c_ph.text_input("Spot Phone (Required)", value=row['Spot Phone'])
-                    new_ticket = c_tk.text_input("Ticket No (Required)", value=row['Ticket_Number'])
+                    new_phone = c_ph.text_input("Phone (Req)", value=row['Spot Phone'])
+                    new_ticket = c_tk.text_input("Ticket (Req)", value=row['Ticket_Number'])
                     
                     sz_list = ["S", "M", "L", "XL", "XXL"]
-                    curr_sz_idx = sz_list.index(sz) if sz in sz_list else 2
-                    new_size = st.selectbox("Update T-Shirt Size", sz_list, index=curr_sz_idx)
+                    new_size = st.selectbox("Update Size", sz_list, index=sz_list.index(sz) if sz in sz_list else 2)
                     
                     st.markdown("---")
                     st.subheader("⚡ Actions")
-                    
                     c_a, c_b = st.columns(2)
                     new_ent = c_a.toggle("✅ Mark Entry", value=is_ent)
                     new_kit = c_b.toggle("👕 Give T-Shirt", value=is_kit)
                     
                     buses = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-                    curr_bus_idx = buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0
-                    new_bus = st.selectbox("🚌 Assign Bus", buses, index=curr_bus_idx)
+                    new_bus = st.selectbox("🚌 Assign Bus", buses, index=buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0)
                     
                     if st.button("💾 Save Changes", type="primary", use_container_width=True):
+                        # 1. Validation: Fields Empty?
                         if not new_phone or new_phone == 'N/A' or not new_ticket or new_ticket == 'N/A':
-                            st.error("❌ Spot Phone and Ticket Number are REQUIRED!")
+                            st.error("❌ Phone & Ticket are REQUIRED!")
                         else:
-                            # Stock Update Logic
-                            if new_kit:
-                                if is_kit: 
-                                    if sz != new_size:
+                            # 2. 🔥 BUS RESERVATION LOGIC 🔥
+                            can_assign_bus = True
+                            if new_bus != "Unassigned":
+                                # Calculate current counts in target bus
+                                bus_pax = df[df['Bus_Number'] == new_bus]
+                                # Exclude current user from count if already in that bus
+                                bus_pax = bus_pax[bus_pax.index != idx]
+                                
+                                total_in_bus = len(bus_pax)
+                                student_in_bus = len(bus_pax[bus_pax['Role'] == 'Student'])
+                                
+                                # LOGIC:
+                                if new_role == "Student":
+                                    if student_in_bus >= STUDENT_LIMIT: # >= 43
+                                        st.error(f"⛔ {new_bus} Student Limit Reached (43/45)! Last 2 seats reserved for Organizer/Teacher.")
+                                        can_assign_bus = False
+                                    elif total_in_bus >= BUS_CAPACITY:
+                                        st.error(f"⛔ {new_bus} is FULL (45/45)!")
+                                        can_assign_bus = False
+                                else: # Teacher/Organizer/Volunteer
+                                    if total_in_bus >= BUS_CAPACITY:
+                                        st.error(f"⛔ {new_bus} is FULL (45/45)!")
+                                        can_assign_bus = False
+
+                            if can_assign_bus:
+                                # Stock Logic
+                                if new_kit:
+                                    if is_kit and sz != new_size: # Swapped
                                         st.session_state.stock[sz] += 1
                                         st.session_state.stock[new_size] -= 1
-                                else:
-                                    st.session_state.stock[new_size] -= 1
-                            elif not new_kit and is_kit:
-                                st.session_state.stock[sz] += 1
-                            
-                            # Data Update
-                            st.session_state.df.at[idx, 'Name'] = new_name
-                            st.session_state.df.at[idx, 'Role'] = new_role # Role Update
-                            st.session_state.df.at[idx, 'Spot Phone'] = new_phone
-                            st.session_state.df.at[idx, 'Ticket_Number'] = new_ticket
-                            st.session_state.df.at[idx, 'T_Shirt_Size'] = new_size
-                            st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else 'N/A'
-                            st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
-                            st.session_state.df.at[idx, 'Bus_Number'] = new_bus
-                            
-                            if new_ent and row['Entry_Time'] == 'N/A':
-                                st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
-                            
-                            conn.update(worksheet="Data", data=st.session_state.df)
-                            s_data = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
-                            conn.update(worksheet="Stock", data=pd.DataFrame(s_data))
-                            
-                            st.success(f"✅ Updated! Role set to: {new_role}")
-                            time.sleep(0.5)
-                            st.rerun()
-        else:
-            st.warning("No user found!")
+                                    elif not is_kit: # New given
+                                        st.session_state.stock[new_size] -= 1
+                                elif not new_kit and is_kit: # Returned
+                                    st.session_state.stock[sz] += 1
+                                
+                                # Save Data
+                                st.session_state.df.at[idx, 'Name'] = new_name
+                                st.session_state.df.at[idx, 'Role'] = new_role
+                                st.session_state.df.at[idx, 'Spot Phone'] = new_phone
+                                st.session_state.df.at[idx, 'Ticket_Number'] = new_ticket
+                                st.session_state.df.at[idx, 'T_Shirt_Size'] = new_size
+                                st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else 'N/A'
+                                st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
+                                st.session_state.df.at[idx, 'Bus_Number'] = new_bus
+                                
+                                if new_ent and row['Entry_Time'] == 'N/A':
+                                    st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
+                                
+                                conn.update(worksheet="Data", data=st.session_state.df)
+                                s_d = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
+                                conn.update(worksheet="Stock", data=pd.DataFrame(s_d))
+                                st.success("✅ Updated Successfully!")
+                                time.sleep(0.5); st.rerun()
+        else: st.warning("No user found!")
 
 # --- TAB 2: CLASS LISTS ---
 elif menu == "📜 Class Lists":
     st.title("📜 Class Wise List")
     classes = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
-    selected_class = st.selectbox("Select Class:", ["All"] + classes)
-    
-    view_df = st.session_state.df if selected_class == "All" else st.session_state.df[st.session_state.df['Class'] == selected_class]
+    sel_cls = st.selectbox("Select Class:", ["All"] + classes)
+    v_df = st.session_state.df if sel_cls == "All" else st.session_state.df[st.session_state.df['Class'] == sel_cls]
     
     c1, c2, c3 = st.columns(3)
-    c1.metric("Students", len(view_df))
-    c2.metric("Checked In", len(view_df[view_df['Entry_Status'] == 'Done']))
-    c3.metric("Pending", len(view_df) - len(view_df[view_df['Entry_Status'] == 'Done']))
-    
-    st.dataframe(view_df[['Name', 'Class', 'Roll', 'Ticket_Number', 'Spot Phone', 'Entry_Status']], use_container_width=True)
+    c1.metric("Total", len(v_df))
+    c2.metric("In", len(v_df[v_df['Entry_Status']=='Done']))
+    c3.metric("Pending", len(v_df)-len(v_df[v_df['Entry_Status']=='Done']))
+    st.dataframe(v_df[['Name', 'Class', 'Roll', 'Spot Phone', 'Entry_Status']], use_container_width=True)
 
-# --- TAB 3: BUS MANAGER ---
+# --- TAB 3: BUS MANAGER (WITH RESERVED SEAT LOGIC) ---
 elif menu == "🚌 Bus Manager":
     st.title("🚌 Fleet Management")
     
-    cols = st.columns(4)
     buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
+    cols = st.columns(4)
     for i, b in enumerate(buses):
-        cnt = len(st.session_state.df[st.session_state.df['Bus_Number'] == b])
-        cols[i].metric(b, f"{cnt}/45", f"{45-cnt} Left")
+        df_b = st.session_state.df[st.session_state.df['Bus_Number'] == b]
+        cnt = len(df_b)
+        stus = len(df_b[df_b['Role'] == 'Student'])
+        cols[i].metric(b, f"{cnt}/45", f"Students: {stus}/43")
+        cols[i].progress(min(cnt/45, 1.0))
     
     st.markdown("---")
     st.subheader("📋 Bus Passenger List")
-    sel_bus = st.selectbox("Select Bus to View List:", buses)
-    bus_df = st.session_state.df[st.session_state.df['Bus_Number'] == sel_bus]
+    sel_bus = st.selectbox("Select Bus:", buses)
+    b_df = st.session_state.df[st.session_state.df['Bus_Number'] == sel_bus]
+    if not b_df.empty:
+        st.dataframe(b_df[['Name', 'Role', 'Class', 'Spot Phone']], use_container_width=True)
+    else: st.info("Bus Empty")
     
-    if not bus_df.empty:
-        st.write(f"Showing list for **{sel_bus}** ({len(bus_df)} Passengers)")
-        st.dataframe(bus_df[['Name', 'Class', 'Ticket_Number', 'Spot Phone', 'Roll']], use_container_width=True)
-    else: st.info(f"{sel_bus} is empty.")
-        
     st.markdown("---")
-    st.subheader("🚀 Auto-Assign Tool")
+    st.subheader("🚀 Smart Auto-Assign (With 43 Limit)")
     c1, c2, c3 = st.columns(3)
-    role = c1.selectbox("Role/Class", ["Student", "Volunteer", "Teacher"])
+    role = c1.selectbox("Role", ["Student", "Volunteer", "Teacher"])
     start_b = c2.selectbox("Start Bus", buses)
     
     if c3.button("Auto Assign"):
         mask = st.session_state.df['Role'] == role
         indices = st.session_state.df[mask].index.tolist()
         b_idx = buses.index(start_b)
+        
+        assigned_cnt = 0
         for pid in indices:
             while b_idx < 4:
-                if len(st.session_state.df[st.session_state.df['Bus_Number'] == buses[b_idx]]) < 45:
-                    st.session_state.df.at[pid, 'Bus_Number'] = buses[b_idx]
+                curr_bus = buses[b_idx]
+                curr_df = st.session_state.df[st.session_state.df['Bus_Number'] == curr_bus]
+                total_load = len(curr_df)
+                stu_load = len(curr_df[curr_df['Role'] == 'Student'])
+                
+                # 🔥 RESERVATION LOGIC 🔥
+                can_fit = False
+                if role == "Student":
+                    if stu_load < STUDENT_LIMIT: can_fit = True # Must be < 43
+                else:
+                    if total_load < BUS_CAPACITY: can_fit = True # Must be < 45
+                
+                if can_fit:
+                    st.session_state.df.at[pid, 'Bus_Number'] = curr_bus
+                    assigned_cnt += 1
                     break
-                else: b_idx += 1
+                else:
+                    b_idx += 1 # Try next bus
+                    
         conn.update(worksheet="Data", data=st.session_state.df)
-        st.success("Done!")
+        st.success(f"Assigned {assigned_cnt} people!")
         st.rerun()
 
 # --- TAB 4: DASHBOARD ---
@@ -265,13 +296,13 @@ elif menu == "📊 Dashboard":
     df = st.session_state.df
     c1, c2, c3 = st.columns(3)
     c1.metric("Total", len(df))
-    c2.metric("Checked In", len(df[df['Entry_Status']=='Done']))
-    c3.metric("Kits Out", len(df[df['T_Shirt_Collected']=='Yes']))
+    c2.metric("Entry", len(df[df['Entry_Status']=='Done']))
+    c3.metric("Kits", len(df[df['T_Shirt_Collected']=='Yes']))
     st.bar_chart(df['T_Shirt_Size'].value_counts())
 
 # --- TAB 5: ADMIN DATA ---
 elif menu == "📝 Admin Data":
     st.title("📝 Full Database")
     st.dataframe(st.session_state.df)
-    if st.button("📥 Download CSV"):
+    if st.button("📥 CSV"):
         st.download_button("Download", st.session_state.df.to_csv(), "data.csv")
