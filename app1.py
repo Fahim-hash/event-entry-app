@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
-import altair as alt
+import pytz  # Timezone handling
 
 # ==================== 1. CONFIG & STYLE ====================
 st.set_page_config(page_title="Event OS Pro", page_icon="⚡", layout="wide")
@@ -75,6 +75,34 @@ if not st.session_state.logged_in:
 
 # ==================== 4. MAIN APP ====================
 st.sidebar.title("⚡ Menu")
+
+# 🔥 UPDATED COUNTDOWN TIMER (Feb 3, 7:00 AM) 🔥
+tz = pytz.timezone('Asia/Dhaka') # GMT+6
+now = datetime.now(tz)
+target_date = datetime(2026, 2, 3, 7, 0, 0, tzinfo=tz) # Feb 3rd, 2026 at 7:00 AM
+remaining = target_date - now
+
+if remaining.total_seconds() > 0:
+    days = remaining.days
+    hours, remainder = divmod(remaining.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    
+    st.sidebar.markdown(f"""
+    <div style="background: linear-gradient(45deg, #ff00cc, #333399); padding: 15px; border-radius: 12px; text-align: center; color: white; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
+        <h4 style="margin:0; font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px;">🚀 Event Starts In</h4>
+        <div style="font-size: 28px; font-weight: 900; margin: 5px 0; text-shadow: 0 0 10px rgba(255,255,255,0.5);">
+            {days}d {hours}h {minutes}m
+        </div>
+        <small style="opacity: 0.7;">3rd Feb 2026, 7:00 AM</small>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.sidebar.markdown("""
+    <div style="background: linear-gradient(45deg, #00ff88, #0099cc); padding: 15px; border-radius: 12px; text-align: center; color: black; margin-bottom: 20px; font-weight: bold;">
+        🎉 EVENT HAS STARTED! 🚀
+    </div>
+    """, unsafe_allow_html=True)
+
 menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 View Lists (Student/Staff)", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
 
 if st.sidebar.button("🔄 Refresh Data"):
@@ -86,7 +114,6 @@ if menu == "🔍 Search & Entry":
     q = st.text_input("🔎 Search by Ticket / Name / Phone:").strip()
     if q:
         df = st.session_state.df
-        # 🔥 FIX: Added regex=False to prevent crash with '+' symbol 🔥
         mask = df['Name'].str.contains(q, case=False, regex=False) | \
                df['Ticket_Number'].str.contains(q, case=False, regex=False) | \
                df['Spot Phone'].str.contains(q, case=False, regex=False)
@@ -128,7 +155,8 @@ if menu == "🔍 Search & Entry":
                     st.subheader("✏️ Edit & Actions")
                     c_n, c_r = st.columns([1.5, 1])
                     new_name = c_n.text_input("Name", row['Name'])
-                    role_opts = ["Student", "Volunteer", "Teacher", "College Staff", "Organizer"]
+                    
+                    role_opts = ["Student", "Volunteer", "Teacher", "College Staff", "Organizer", "Principal", "College Head"]
                     new_role = c_r.selectbox("Role", role_opts, index=role_opts.index(row['Role']) if row['Role'] in role_opts else 0)
                     
                     c_p, c_t = st.columns(2)
@@ -178,20 +206,21 @@ elif menu == "➕ Add Staff/Teacher":
     st.title("➕ Add Manual Entry")
     with st.form("add"):
         c1, c2 = st.columns(2); name = c1.text_input("Name"); ph = c2.text_input("Phone")
-        c3, c4 = st.columns(2); role = c3.selectbox("Role", ["Teacher", "College Staff", "Guest", "Volunteer"]); cls = c4.text_input("Class (Optional)", "N/A")
+        
+        c3, c4 = st.columns(2)
+        role = c3.selectbox("Role", ["Teacher", "College Staff", "Guest", "Volunteer", "Principal", "College Head"])
+        cls = c4.text_input("Class (Optional)", "N/A")
+        
         if st.form_submit_button("Add"):
             if name and ph:
                 new = {'Name':name, 'Role':role, 'Spot Phone':ph, 'Ticket_Number':f"MAN-{int(time.time())}", 'Class':cls, 'Roll':'N/A', 'Entry_Status':'N/A', 'Entry_Time':'N/A', 'Bus_Number':'Unassigned', 'T_Shirt_Size':'L', 'T_Shirt_Collected':'No', 'Notes':'Manual'}
                 st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new])], ignore_index=True)
                 conn.update(worksheet="Data", data=st.session_state.df); st.success("Added!"); time.sleep(1); st.rerun()
 
-# --- TAB: VIEW LISTS (UPDATED) ---
+# --- TAB: VIEW LISTS ---
 elif menu == "📜 View Lists (Student/Staff)":
     st.title("📜 View Lists")
-    
-    # 🔥 New Filter Type: Class or Role 🔥
     filter_type = st.radio("Filter By:", ["Class", "Role"], horizontal=True)
-    
     view_df = pd.DataFrame()
     
     if filter_type == "Class":
@@ -233,7 +262,8 @@ elif menu == "🚌 Bus Manager":
     buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
     cols = st.columns(4)
     for i, b in enumerate(buses):
-        cnt = len(st.session_state.df[st.session_state.df['Bus_Number'] == b])
+        df_b = st.session_state.df[st.session_state.df['Bus_Number'] == b]
+        cnt = len(df_b)
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     
     st.markdown("---")
@@ -255,7 +285,7 @@ elif menu == "🚌 Bus Manager":
         st.download_button("⬇️ Download", html, "Manifest.html", "text/html")
 
     st.subheader("🚀 Auto Assign")
-    c1, c2 = st.columns(2); role = c1.selectbox("Role", ["Student", "Volunteer"]); start = c2.selectbox("Start", buses)
+    c1, c2 = st.columns(2); role = c1.selectbox("Role", ["Student", "Volunteer", "Teacher"]); start = c2.selectbox("Start", buses)
     if st.button("Assign"):
         mask = st.session_state.df['Role'] == role; idxs = st.session_state.df[mask].index
         b_i = buses.index(start); cnt=0
