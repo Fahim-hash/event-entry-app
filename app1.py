@@ -248,32 +248,33 @@ if menu == "🔍 Search & Entry":
             col1, col2 = st.columns([1, 1.5])
             with col1:
                 status_color = "#00ff88" if is_ent else "#ff4b4b"
+                kit_color = "#00ff88" if is_kit else "#ffcc00"
+                kit_status = "✅ COLLECTED" if is_kit else "📦 PENDING"
                 
-                # HTML CARD RENDER
-                st.markdown(f"""
-                <div class="{card_class}">
-                    <div style="background:{status_color}; color:black; font-weight:bold; padding:5px; border-radius:5px; margin-bottom:10px;">
-                        {'✅ CHECKED IN' if is_ent else '⏳ NOT ENTERED'}
-                    </div>
-                    <span class="role-badge">{row['Role']}</span>
-                    <div class="id-name">{row['Name']}</div>
-                    
-                    <div class="info-row">
-                        <span>Ticket ID</span>
-                        <span style="color:white; font-family:monospace;">{row['Ticket_Number']}</span>
-                    </div>
-                    <div class="info-row">
-                        <span>Bus No</span>
-                        <span style="color:white;">{row['Bus_Number']}</span>
-                    </div>
-                    
-                    <div style="margin-top:15px; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1);">
-                        <div style="font-size:12px; color:#aaa; margin-bottom:5px;">MERCHANDISE</div>
-                        <span style="font-size:16px; font-weight:bold; color:white;">👕 Size: {sz}</span><br>
-                        <span style="font-size:12px; color:{'#00ff88' if is_kit else '#ffcc00'};">{'✅ COLLECTED' if is_kit else '📦 PENDING'}</span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                # HTML CARD RENDER (Fixed Indentation)
+                html_code = f"""
+<div class="{card_class}">
+    <div style="background:{status_color}; color:black; font-weight:bold; padding:5px; border-radius:5px; margin-bottom:10px;">
+        {'✅ CHECKED IN' if is_ent else '⏳ NOT ENTERED'}
+    </div>
+    <span class="role-badge">{row['Role']}</span>
+    <div class="id-name">{row['Name']}</div>
+    <div class="info-row">
+        <span>Ticket ID</span>
+        <span style="color:white; font-family:monospace;">{row['Ticket_Number']}</span>
+    </div>
+    <div class="info-row">
+        <span>Bus No</span>
+        <span style="color:white;">{row['Bus_Number']}</span>
+    </div>
+    <div style="margin-top:15px; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1);">
+        <div style="font-size:12px; color:#aaa; margin-bottom:5px;">MERCHANDISE</div>
+        <span style="font-size:16px; font-weight:bold; color:white;">👕 Size: {sz}</span><br>
+        <span style="font-size:12px; color:{kit_color};">{kit_status}</span>
+    </div>
+</div>
+"""
+                st.markdown(html_code, unsafe_allow_html=True)
                 
                 if row['Bus_Number'] != "Unassigned":
                     if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
