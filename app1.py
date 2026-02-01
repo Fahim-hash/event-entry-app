@@ -109,6 +109,7 @@ if menu == "🔍 Search & Entry":
             sz = row['T_Shirt_Size']
             rem = st.session_state.stock.get(sz, 0)
             
+            # Stock Warning
             if not is_kit:
                 if rem == 0: st.error(f"❌ OUT OF STOCK! No {sz} size available.")
                 elif rem <= 5: st.warning(f"⚠️ LOW STOCK ALERT: Only {rem} remaining!")
@@ -132,13 +133,12 @@ if menu == "🔍 Search & Entry":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # UNASSIGN BUTTON
+                # Single Unassign
                 if row['Bus_Number'] != "Unassigned":
                     if st.button(f"❌ Unassign from {row['Bus_Number']}", type="secondary", use_container_width=True):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
                         conn.update(worksheet="Data", data=st.session_state.df)
-                        st.success(f"Removed from {row['Bus_Number']}!")
-                        time.sleep(0.5); st.rerun()
+                        st.success(f"Removed from {row['Bus_Number']}!"); time.sleep(0.5); st.rerun()
 
             with col2:
                 with st.container(border=True):
@@ -168,16 +168,13 @@ if menu == "🔍 Search & Entry":
                         if not new_phone or new_phone == 'N/A' or not new_ticket or new_ticket == 'N/A':
                             st.error("❌ Phone & Ticket are REQUIRED!")
                         else:
-                            # Bus Limit Check
                             can_assign = True
                             if new_bus != "Unassigned" and new_bus != row['Bus_Number']:
                                 bus_pax = df[df['Bus_Number'] == new_bus]
                                 if len(bus_pax) >= BUS_CAPACITY:
-                                    st.error(f"⛔ {new_bus} is FULL ({len(bus_pax)}/{BUS_CAPACITY})!")
-                                    can_assign = False
+                                    st.error(f"⛔ {new_bus} is FULL ({len(bus_pax)}/{BUS_CAPACITY})!"); can_assign = False
 
                             if can_assign:
-                                # Stock
                                 if new_kit:
                                     if is_kit and sz != new_size:
                                         st.session_state.stock[sz] += 1
@@ -187,7 +184,6 @@ if menu == "🔍 Search & Entry":
                                 elif not new_kit and is_kit:
                                     st.session_state.stock[sz] += 1
                                 
-                                # Save
                                 st.session_state.df.at[idx, 'Name'] = new_name
                                 st.session_state.df.at[idx, 'Role'] = new_role
                                 st.session_state.df.at[idx, 'Spot Phone'] = new_phone
@@ -196,10 +192,8 @@ if menu == "🔍 Search & Entry":
                                 st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else 'N/A'
                                 st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
                                 st.session_state.df.at[idx, 'Bus_Number'] = new_bus
-                                
                                 if new_ent and row['Entry_Time'] == 'N/A':
                                     st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
-                                
                                 conn.update(worksheet="Data", data=st.session_state.df)
                                 s_d = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
                                 conn.update(worksheet="Stock", data=pd.DataFrame(s_d))
@@ -218,7 +212,6 @@ elif menu == "➕ Add Staff/Teacher":
         is_class_teacher = c4.checkbox("Is Class Teacher?")
         class_name = "N/A"
         if is_class_teacher: class_name = st.text_input("Class Name")
-        
         if st.form_submit_button("➕ Add"):
             if name and phone:
                 manual_ticket = f"MAN-{int(time.time())}"
@@ -257,73 +250,67 @@ elif menu == "🚌 Bus Manager":
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free")
         cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     
-    # 🔥 PRINT MANIFEST SECTION 🔥
+    # 🔥 BULK UNASSIGN SECTION 🔥
     st.markdown("---")
-    st.subheader("🖨️ Print Signing Sheets")
-    
+    with st.expander("🗑️ Mass / Bulk Unassign Tools", expanded=True):
+        st.warning("⚠️ Warning: These actions will remove multiple people from buses instantly!")
+        
+        b_c1, b_c2 = st.columns(2)
+        
+        # 1. Clear Specific Bus
+        with b_c1:
+            st.subheader("Option 1: Empty a Whole Bus")
+            target_bus = st.selectbox("Select Bus to Empty:", buses)
+            if st.button(f"🗑️ Remove Everyone from {target_bus}"):
+                mask = st.session_state.df['Bus_Number'] == target_bus
+                count = mask.sum()
+                if count > 0:
+                    st.session_state.df.loc[mask, 'Bus_Number'] = 'Unassigned'
+                    conn.update(worksheet="Data", data=st.session_state.df)
+                    st.success(f"✅ Successfully removed {count} people from {target_bus}!")
+                    time.sleep(1); st.rerun()
+                else: st.info("Bus is already empty.")
+
+        # 2. Clear By Group
+        with b_c2:
+            st.subheader("Option 2: Unassign by Class/Role")
+            filter_mode = st.selectbox("Unassign Filter:", ["Class", "Role"])
+            filter_opts = sorted([x for x in st.session_state.df[filter_mode].unique() if x not in ['', 'N/A']])
+            target_group = st.selectbox("Select Group:", filter_opts)
+            
+            if st.button(f"❌ Unassign All '{target_group}'"):
+                mask = st.session_state.df[filter_mode] == target_group
+                # Only unassign if they are assigned
+                mask = mask & (st.session_state.df['Bus_Number'] != 'Unassigned')
+                count = mask.sum()
+                
+                if count > 0:
+                    st.session_state.df.loc[mask, 'Bus_Number'] = 'Unassigned'
+                    conn.update(worksheet="Data", data=st.session_state.df)
+                    st.success(f"✅ Successfully unassigned {count} people from group '{target_group}'!")
+                    time.sleep(1); st.rerun()
+                else: st.info("No one from this group is assigned to a bus.")
+
+    # Print Manifest
+    st.markdown("---")
+    st.subheader("🖨️ Print Manifest")
     p_bus = st.selectbox("Select Bus to Print:", ["All Buses"] + buses)
-    
-    if st.button("📄 Generate Manifest for Printing"):
-        # HTML Generator
-        html_content = """
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; }
-                .bus-page { page-break-after: always; padding: 20px; border: 2px solid #000; margin-bottom: 20px; }
-                h1 { text-align: center; text-decoration: underline; }
-                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                th, td { border: 1px solid black; padding: 8px; text-align: left; font-size: 12px; }
-                th { background-color: #f2f2f2; }
-            </style>
-        </head>
-        <body>
-        """
-        
-        target_buses = buses if p_bus == "All Buses" else [p_bus]
-        
-        for bus in target_buses:
-            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == bus]
+    if st.button("📄 Generate Printable Sheet"):
+        html = "<html><head><style>body{font-family:Arial;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid black;padding:8px;} .page{page-break-after:always;padding:20px;}</style></head><body>"
+        targets = buses if p_bus == "All Buses" else [p_bus]
+        for b in targets:
+            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == b]
             if not b_df.empty:
-                html_content += f"""
-                <div class="bus-page">
-                    <h1>{bus} - Passenger Manifest ({len(b_df)} Pax)</h1>
-                    <p><b>Date:</b> ____________________ &nbsp;&nbsp; <b>Supervisor:</b> ____________________</p>
-                    <table>
-                        <tr>
-                            <th style="width:5%">SL</th>
-                            <th style="width:25%">Name</th>
-                            <th style="width:15%">Role</th>
-                            <th style="width:15%">Phone</th>
-                            <th style="width:20%">Sign (IN)</th>
-                            <th style="width:20%">Sign (OUT)</th>
-                        </tr>
-                """
+                html += f"<div class='page'><h1>{b} Manifest ({len(b_df)} Pax)</h1><p>Supervisor: ___________</p><table><tr><th>SL</th><th>Name</th><th>Role</th><th>Phone</th><th>Sign (In)</th><th>Sign (Out)</th></tr>"
                 for i, (_, r) in enumerate(b_df.iterrows(), 1):
-                    html_content += f"""
-                        <tr>
-                            <td>{i}</td>
-                            <td>{r['Name']}</td>
-                            <td>{r['Role']}</td>
-                            <td>{r['Spot Phone']}</td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                    """
-                html_content += "</table></div>"
-        
-        html_content += "</body></html>"
-        
-        # Download Button
-        st.download_button(
-            label="⬇️ Download Print-Ready HTML",
-            data=html_content,
-            file_name=f"Manifest_{p_bus}_{int(time.time())}.html",
-            mime="text/html"
-        )
+                    html += f"<tr><td>{i}</td><td>{r['Name']}</td><td>{r['Role']}</td><td>{r['Spot Phone']}</td><td></td><td></td></tr>"
+                html += "</table></div>"
+        html += "</body></html>"
+        st.download_button("⬇️ Download HTML", html, f"Manifest_{int(time.time())}.html", "text/html")
     
+    # Auto Assign
     st.markdown("---")
-    st.subheader("🚀 Smart Auto-Assign")
+    st.subheader("🚀 Auto Assign")
     c1, c2, c3 = st.columns(3)
     role = c1.selectbox("Role", ["Student", "Volunteer", "Teacher"])
     start_b = c2.selectbox("Start Bus", buses)
@@ -331,17 +318,16 @@ elif menu == "🚌 Bus Manager":
         mask = st.session_state.df['Role'] == role
         indices = st.session_state.df[mask].index.tolist()
         b_idx = buses.index(start_b)
-        assigned_cnt = 0
+        cnt = 0
         for pid in indices:
             while b_idx < 4:
-                curr_bus = buses[b_idx]
-                curr_df = st.session_state.df[st.session_state.df['Bus_Number'] == curr_bus]
-                if len(curr_df) < BUS_CAPACITY:
-                    st.session_state.df.at[pid, 'Bus_Number'] = curr_bus
-                    assigned_cnt += 1; break
+                curr = buses[b_idx]
+                if len(st.session_state.df[st.session_state.df['Bus_Number'] == curr]) < BUS_CAPACITY:
+                    st.session_state.df.at[pid, 'Bus_Number'] = curr
+                    cnt += 1; break
                 else: b_idx += 1 
         conn.update(worksheet="Data", data=st.session_state.df)
-        st.success(f"Assigned {assigned_cnt} people!"); st.rerun()
+        st.success(f"Assigned {cnt}!"); st.rerun()
 
 # --- TAB 5: DASHBOARD ---
 elif menu == "📊 Dashboard":
