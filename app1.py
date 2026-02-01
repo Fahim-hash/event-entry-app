@@ -192,8 +192,10 @@ if menu == "🔍 Search & Entry":
                                 st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else 'N/A'
                                 st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
                                 st.session_state.df.at[idx, 'Bus_Number'] = new_bus
+                                
                                 if new_ent and row['Entry_Time'] == 'N/A':
                                     st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
+                                
                                 conn.update(worksheet="Data", data=st.session_state.df)
                                 s_d = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
                                 conn.update(worksheet="Stock", data=pd.DataFrame(s_d))
@@ -250,67 +252,100 @@ elif menu == "🚌 Bus Manager":
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free")
         cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     
-    # 🔥 BULK UNASSIGN SECTION 🔥
+    # Bulk Unassign
     st.markdown("---")
-    with st.expander("🗑️ Mass / Bulk Unassign Tools", expanded=True):
-        st.warning("⚠️ Warning: These actions will remove multiple people from buses instantly!")
-        
+    with st.expander("🗑️ Mass Unassign Tools"):
         b_c1, b_c2 = st.columns(2)
-        
-        # 1. Clear Specific Bus
         with b_c1:
-            st.subheader("Option 1: Empty a Whole Bus")
-            target_bus = st.selectbox("Select Bus to Empty:", buses)
-            if st.button(f"🗑️ Remove Everyone from {target_bus}"):
+            st.subheader("Empty Bus")
+            target_bus = st.selectbox("Select Bus:", buses)
+            if st.button(f"🗑️ Empty {target_bus}"):
                 mask = st.session_state.df['Bus_Number'] == target_bus
-                count = mask.sum()
-                if count > 0:
+                if mask.sum() > 0:
                     st.session_state.df.loc[mask, 'Bus_Number'] = 'Unassigned'
                     conn.update(worksheet="Data", data=st.session_state.df)
-                    st.success(f"✅ Successfully removed {count} people from {target_bus}!")
-                    time.sleep(1); st.rerun()
-                else: st.info("Bus is already empty.")
-
-        # 2. Clear By Group
+                    st.success("Done!"); time.sleep(1); st.rerun()
         with b_c2:
-            st.subheader("Option 2: Unassign by Class/Role")
-            filter_mode = st.selectbox("Unassign Filter:", ["Class", "Role"])
-            filter_opts = sorted([x for x in st.session_state.df[filter_mode].unique() if x not in ['', 'N/A']])
-            target_group = st.selectbox("Select Group:", filter_opts)
-            
-            if st.button(f"❌ Unassign All '{target_group}'"):
-                mask = st.session_state.df[filter_mode] == target_group
-                # Only unassign if they are assigned
-                mask = mask & (st.session_state.df['Bus_Number'] != 'Unassigned')
-                count = mask.sum()
-                
-                if count > 0:
+            st.subheader("Unassign Group")
+            grp = st.selectbox("Class to Unassign:", sorted([x for x in st.session_state.df['Class'].unique() if x not in ['']]))
+            if st.button(f"❌ Unassign All {grp}"):
+                mask = (st.session_state.df['Class'] == grp) & (st.session_state.df['Bus_Number'] != 'Unassigned')
+                if mask.sum() > 0:
                     st.session_state.df.loc[mask, 'Bus_Number'] = 'Unassigned'
                     conn.update(worksheet="Data", data=st.session_state.df)
-                    st.success(f"✅ Successfully unassigned {count} people from group '{target_group}'!")
-                    time.sleep(1); st.rerun()
-                else: st.info("No one from this group is assigned to a bus.")
-
-    # Print Manifest
-    st.markdown("---")
-    st.subheader("🖨️ Print Manifest")
-    p_bus = st.selectbox("Select Bus to Print:", ["All Buses"] + buses)
-    if st.button("📄 Generate Printable Sheet"):
-        html = "<html><head><style>body{font-family:Arial;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid black;padding:8px;} .page{page-break-after:always;padding:20px;}</style></head><body>"
-        targets = buses if p_bus == "All Buses" else [p_bus]
-        for b in targets:
-            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == b]
-            if not b_df.empty:
-                html += f"<div class='page'><h1>{b} Manifest ({len(b_df)} Pax)</h1><p>Supervisor: ___________</p><table><tr><th>SL</th><th>Name</th><th>Role</th><th>Phone</th><th>Sign (In)</th><th>Sign (Out)</th></tr>"
-                for i, (_, r) in enumerate(b_df.iterrows(), 1):
-                    html += f"<tr><td>{i}</td><td>{r['Name']}</td><td>{r['Role']}</td><td>{r['Spot Phone']}</td><td></td><td></td></tr>"
-                html += "</table></div>"
-        html += "</body></html>"
-        st.download_button("⬇️ Download HTML", html, f"Manifest_{int(time.time())}.html", "text/html")
+                    st.success("Done!"); time.sleep(1); st.rerun()
     
-    # Auto Assign
+    # 🔥 A4 PRINT MANIFEST SECTION 🔥
     st.markdown("---")
-    st.subheader("🚀 Auto Assign")
+    st.subheader("🖨️ A4 Print Manifest")
+    
+    p_bus = st.selectbox("Select Bus to Print:", ["All Buses"] + buses)
+    
+    if st.button("📄 Generate A4 PDF Ready File"):
+        html_content = """
+        <html>
+        <head>
+            <style>
+                @page { size: A4; margin: 10mm; }
+                body { font-family: 'Arial', sans-serif; font-size: 12px; }
+                .bus-page { page-break-after: always; width: 100%; }
+                h1 { text-align: center; font-size: 18px; text-decoration: underline; margin-bottom: 5px; }
+                .meta { text-align: center; margin-bottom: 20px; font-size: 14px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid black; padding: 6px; text-align: left; }
+                th { background-color: #f0f0f0; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+        """
+        
+        target_buses = buses if p_bus == "All Buses" else [p_bus]
+        
+        for bus in target_buses:
+            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == bus]
+            if not b_df.empty:
+                html_content += f"""
+                <div class="bus-page">
+                    <h1>{bus} Passenger Manifest</h1>
+                    <div class="meta">
+                        <b>Total Pax:</b> {len(b_df)} &nbsp;|&nbsp; 
+                        <b>Date:</b> {datetime.now().strftime('%d-%b-%Y')} &nbsp;|&nbsp; 
+                        <b>Supervisor Sign:</b> ___________________
+                    </div>
+                    <table>
+                        <tr>
+                            <th style="width:5%">SL</th>
+                            <th style="width:30%">Name</th>
+                            <th style="width:15%">Role</th>
+                            <th style="width:15%">Phone</th>
+                            <th style="width:15%">Sign (IN)</th>
+                            <th style="width:15%">Sign (OUT)</th>
+                        </tr>
+                """
+                for i, (_, r) in enumerate(b_df.iterrows(), 1):
+                    html_content += f"""
+                        <tr>
+                            <td>{i}</td>
+                            <td>{r['Name']}</td>
+                            <td>{r['Role']}</td>
+                            <td>{r['Spot Phone']}</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    """
+                html_content += "</table></div>"
+        
+        html_content += "</body></html>"
+        
+        st.download_button(
+            label="⬇️ Download A4 Print File",
+            data=html_content,
+            file_name=f"A4_Manifest_{p_bus}_{int(time.time())}.html",
+            mime="text/html"
+        )
+    
+    st.markdown("---")
+    st.subheader("🚀 Smart Auto-Assign")
     c1, c2, c3 = st.columns(3)
     role = c1.selectbox("Role", ["Student", "Volunteer", "Teacher"])
     start_b = c2.selectbox("Start Bus", buses)
