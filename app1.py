@@ -379,6 +379,7 @@ elif menu == "🚌 Bus Manager":
         cnt = len(df_b)
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     st.markdown("---")
+    
     with st.expander("🗑️ Bulk Unassign Tools"):
         st.subheader("Option: Empty a Bus")
         target_bus = st.selectbox("Select Bus to Empty:", buses)
@@ -432,6 +433,11 @@ elif menu == "📊 Dashboard":
         st.bar_chart(df['T_Shirt_Size'].value_counts())
     else: st.warning("⚠️ No data available.")
 
+# --- TAB: ADMIN DATA ---
+elif menu == "📝 Admin Data":
+    st.title("📝 Full DB"); st.dataframe(st.session_state.df)
+    st.download_button("Download CSV", st.session_state.df.to_csv(), "data.csv")
+
 # --- SIDEBAR FOOTER (CREDITS) ---
 st.sidebar.markdown("---")
 st.sidebar.markdown("""
@@ -442,8 +448,3 @@ st.sidebar.markdown("""
     <h3 style="margin:0; color: white; text-shadow: 0 0 10px #00ccff; font-family: sans-serif;">Gemini AI</h3>
 </div>
 """, unsafe_allow_html=True)
-
-# --- TAB: ADMIN DATA ---
-elif menu == "📝 Admin Data":
-    st.title("📝 Full DB"); st.dataframe(st.session_state.df)
-    st.download_button("Download CSV", st.session_state.df.to_csv(), "data.csv")
