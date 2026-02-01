@@ -6,76 +6,110 @@ import time
 import pytz
 import streamlit.components.v1 as components
 
-# ==================== 1. CONFIG & STYLE (DJ THEME) ====================
+# ==================== 1. CONFIG & STYLE (ULTRA PREMIUM) ====================
 st.set_page_config(page_title="Event OS Pro | Willian's 26", page_icon="🎆", layout="wide")
 
 st.markdown("""
     <style>
-    /* 🔥 FULL PAGE BACKGROUND (DJ/Concert Vibe) 🔥 */
+    /* 🔥 BACKGROUND (Dark Theme) 🔥 */
     .stApp {
         background-color: #000000;
-        
-        /* Dark Overlay + DJ Image */
         background-image: 
-            linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95)),
+            linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.95)),
             url("https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop");
-            
         background-size: cover;
-        background-position: center;
         background-attachment: fixed;
         color: #ffffff;
     }
     
-    /* SIDEBAR - Semi-Transparent */
+    /* SIDEBAR */
     section[data-testid="stSidebar"] {
-        background-color: rgba(5, 5, 10, 0.95);
-        border-right: 1px solid #333;
+        background-color: rgba(5, 5, 5, 0.95);
+        border-right: 1px solid #222;
     }
+
+    /* === 🚀 ULTRA PREMIUM CARD STYLES === */
     
-    /* METRICS - Glassmorphism */
-    div[data-testid="stMetric"] {
-        background-color: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-left: 4px solid #d500f9; /* Neon Purple */
-        border-radius: 12px;
-        padding: 15px;
-    }
-    div[data-testid="stMetricLabel"] { color: #aaa !important; }
-    div[data-testid="stMetricValue"] { color: #fff !important; text-shadow: 0 0 10px #d500f9; }
-    
-    /* === ID CARD STYLES (PREMIUM) === */
+    /* 1. STUDENT: Cyber Blue Glass */
     .card-student {
-        background: linear-gradient(145deg, rgba(15, 32, 39, 0.8), rgba(44, 83, 100, 0.8));
-        border: 1px solid #4ca1af; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
+        background: rgba(16, 30, 45, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+        border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px;
+        transition: transform 0.3s ease;
+    }
+    .card-student:hover { transform: translateY(-5px); box-shadow: 0 0 25px rgba(0, 255, 255, 0.3); }
+
+    /* 2. ORGANIZER: Neon Purple Pulse */
+    @keyframes pulse-purple {
+        0% { box-shadow: 0 0 0 0 rgba(213, 0, 249, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(213, 0, 249, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(213, 0, 249, 0); }
     }
     .card-organizer {
-        background: linear-gradient(135deg, rgba(58, 0, 136, 0.8), rgba(114, 9, 183, 0.8));
-        border: 2px solid #f72585; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
-        box-shadow: 0 0 15px rgba(247, 37, 133, 0.4);
+        background: linear-gradient(135deg, rgba(40, 0, 80, 0.9), rgba(10, 0, 20, 0.9));
+        border: 2px solid #d500f9;
+        border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px;
+        animation: pulse-purple 2s infinite;
     }
-    .card-staff {
-        background: linear-gradient(145deg, rgba(17, 153, 142, 0.8), rgba(56, 239, 125, 0.8));
-        border: 2px solid #fff; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
-        color: #000 !important;
-    }
-    .card-staff .id-name, .card-staff .info-row { color: #000 !important; font-weight: bold; }
-    
-    .card-volunteer {
-        background: linear-gradient(145deg, rgba(255, 65, 108, 0.8), rgba(255, 75, 43, 0.8));
-        border: 1px solid #ff9966; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
-    }
-    .card-elite {
-        background: radial-gradient(ellipse at center, #FFD700 0%, #B8860B 100%);
-        border: 3px solid #FFF; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
-        color: #000 !important; box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
-    }
-    .card-elite .id-name, .card-elite .info-row { color: #000 !important; font-weight: bold; }
+    .card-organizer .id-name { text-shadow: 0 0 10px #d500f9; }
 
-    /* COMMON TEXT */
-    .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; color: white; }
-    .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.2); padding: 8px 0; font-size: 14px; }
-    .role-badge { background: rgba(0,0,0,0.6); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; border: 1px solid rgba(255,255,255,0.3); }
+    /* 3. STAFF/TEACHER: Professional Emerald */
+    .card-staff {
+        background: linear-gradient(145deg, #002b20, #001a13);
+        border-top: 3px solid #00ff88;
+        border-bottom: 1px solid #00ff88;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px;
+    }
+
+    /* 4. VOLUNTEER: Energetic Warning Style */
+    .card-volunteer {
+        background: repeating-linear-gradient(
+            45deg,
+            #1a0500,
+            #1a0500 10px,
+            #2a0a00 10px,
+            #2a0a00 20px
+        );
+        border: 2px solid #ff4b1f;
+        border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px;
+        box-shadow: 0 0 15px rgba(255, 75, 31, 0.3);
+    }
+
+    /* 5. ELITE (Principal/Head): Royal Gold Metal */
+    .card-elite {
+        background: linear-gradient(to bottom, #111, #222);
+        border: 2px solid transparent;
+        border-image: linear-gradient(to bottom right, #b8860b 0%, #ffd700 100%);
+        border-image-slice: 1;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        padding: 20px; text-align: center; margin-bottom: 20px;
+        position: relative;
+    }
+    /* Gold Shine Effect */
+    .card-elite::after {
+        content: "VIP ACCESS";
+        position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+        background: #ffd700; color: black; font-weight: bold; font-size: 10px;
+        padding: 2px 10px; border-radius: 10px; box-shadow: 0 0 10px #ffd700;
+    }
+    .card-elite .id-name {
+        background: linear-gradient(to right, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+        -webkit-background-clip: text;
+        color: transparent;
+        font-weight: 900; letter-spacing: 2px;
+    }
+
+    /* COMMON TEXT STYLES */
+    .id-name { font-size: 28px; font-weight: bold; margin: 12px 0; color: white; letter-spacing: 0.5px; }
+    .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 0; font-size: 14px; color: #ccc; }
+    .role-badge { 
+        background: rgba(255,255,255,0.1); 
+        color: #fff; padding: 4px 15px; border-radius: 20px; 
+        font-size: 11px; text-transform: uppercase; letter-spacing: 2px; border: 1px solid rgba(255,255,255,0.2); 
+    }
     
     /* INPUT FIELDS */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
@@ -127,7 +161,6 @@ if not st.session_state.logged_in:
 st.sidebar.title("⚡ Menu")
 target_iso = "2026-02-03T07:00:00+06:00"
 
-# 🔥 TIMER WITH DATE 🔥
 timer_html = f"""
 <!DOCTYPE html>
 <html>
@@ -146,15 +179,7 @@ timer_html = f"""
     .label {{ font-family: sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; color: #00ff88; }}
     .time {{ font-size: 28px; font-weight: bold; letter-spacing: 1px; color: #fff; text-shadow: 0 0 10px #00ff88; }}
     .sub-labels {{ font-size: 10px; opacity: 0.7; font-family: sans-serif; margin-bottom: 8px; }}
-    .date-box {{ 
-        border-top: 1px solid rgba(255,255,255,0.2); 
-        padding-top: 5px; 
-        font-family: sans-serif; 
-        font-size: 12px; 
-        color: #ff00cc; 
-        font-weight: bold; 
-        letter-spacing: 1px;
-    }}
+    .date-box {{ border-top: 1px solid rgba(255,255,255,0.2); padding-top: 5px; font-family: sans-serif; font-size: 12px; color: #ff00cc; font-weight: bold; letter-spacing: 1px; }}
 </style>
 </head>
 <body>
@@ -207,7 +232,7 @@ if menu == "🔍 Search & Entry":
             idx = res.index[0]
             row = df.loc[idx]
             
-            # Card Style
+            # 🔥 ROLE BASED PREMIUM CARDS 🔥
             role = row['Role']
             if role in ["Principal", "College Head"]: card_class = "card-elite"
             elif role == "Organizer": card_class = "card-organizer"
@@ -223,6 +248,8 @@ if menu == "🔍 Search & Entry":
             col1, col2 = st.columns([1, 1.5])
             with col1:
                 status_color = "#00ff88" if is_ent else "#ff4b4b"
+                
+                # HTML CARD RENDER
                 st.markdown(f"""
                 <div class="{card_class}">
                     <div style="background:{status_color}; color:black; font-weight:bold; padding:5px; border-radius:5px; margin-bottom:10px;">
@@ -230,10 +257,20 @@ if menu == "🔍 Search & Entry":
                     </div>
                     <span class="role-badge">{row['Role']}</span>
                     <div class="id-name">{row['Name']}</div>
-                    <div class="info-row"><span>Ticket:</span> <b>{row['Ticket_Number']}</b></div>
-                    <div class="info-row"><span>Bus:</span> <b>{row['Bus_Number']}</b></div>
-                    <div style="margin-top:10px; border:1px solid rgba(255,255,255,0.3); padding:8px; border-radius:8px;">
-                        👕 Size: <b>{sz}</b> | Status: {'✅ GIVEN' if is_kit else f'📦 {rem} Left'}
+                    
+                    <div class="info-row">
+                        <span>Ticket ID</span>
+                        <span style="color:white; font-family:monospace;">{row['Ticket_Number']}</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Bus No</span>
+                        <span style="color:white;">{row['Bus_Number']}</span>
+                    </div>
+                    
+                    <div style="margin-top:15px; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size:12px; color:#aaa; margin-bottom:5px;">MERCHANDISE</div>
+                        <span style="font-size:16px; font-weight:bold; color:white;">👕 Size: {sz}</span><br>
+                        <span style="font-size:12px; color:{'#00ff88' if is_kit else '#ffcc00'};">{'✅ COLLECTED' if is_kit else '📦 PENDING'}</span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -342,7 +379,6 @@ elif menu == "🚌 Bus Manager":
         cnt = len(df_b)
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     st.markdown("---")
-    
     with st.expander("🗑️ Bulk Unassign Tools"):
         st.subheader("Option: Empty a Bus")
         target_bus = st.selectbox("Select Bus to Empty:", buses)
@@ -381,14 +417,12 @@ elif menu == "🚌 Bus Manager":
 # --- TAB: DASHBOARD ---
 elif menu == "📊 Dashboard":
     st.title("📊 Event Stats")
-    
     if not st.session_state.df.empty:
         df = st.session_state.df
         grp1 = ['Student', 'Organizer', 'Volunteer']
         cnt1 = len(df[df['Role'].isin(grp1)])
         grp2 = ['Teacher', 'College Staff', 'Principal', 'College Head']
         cnt2 = len(df[df['Role'].isin(grp2)])
-        
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total Registered", len(df))
         c2.metric("Students + Team", cnt1)
@@ -396,8 +430,7 @@ elif menu == "📊 Dashboard":
         c4.metric("Checked In", len(df[df['Entry_Status']=='Done']))
         st.markdown("### T-Shirt Distribution")
         st.bar_chart(df['T_Shirt_Size'].value_counts())
-    else:
-        st.warning("⚠️ No data available.")
+    else: st.warning("⚠️ No data available.")
 
 # --- SIDEBAR FOOTER (CREDITS) ---
 st.sidebar.markdown("---")
