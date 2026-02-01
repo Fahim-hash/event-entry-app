@@ -6,92 +6,67 @@ import time
 import altair as alt
 
 # ==============================================================================
-# 0. SYSTEM CONFIGURATION & UI STYLING
+# 0. SYSTEM CONFIGURATION & ADVANCED UI/UX
 # ==============================================================================
 st.set_page_config(page_title="Event OS Ultimate", page_icon="⚡", layout="wide")
 
-# Custom UI/UX Styling
 st.markdown("""
     <style>
-    .stApp { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
+    .stApp { background-color: #050505; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
-    /* Neon Metric Cards */
+    /* Neon Glassmorphism Metric Cards */
     div[data-testid="stMetric"] {
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.02);
         backdrop-filter: blur(15px);
-        border-radius: 15px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.1);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        border-radius: 18px; padding: 22px; 
+        border: 1px solid rgba(0, 255, 255, 0.15);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
     }
+    div[data-testid="stMetric"]:hover { border-color: #00d2ff; transform: translateY(-3px); }
     
-    /* Glassmorphism ID Card */
+    /* Premium Digital ID Card */
     .id-card {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-        backdrop-filter: blur(20px);
+        background: linear-gradient(135deg, rgba(30, 30, 30, 0.9), rgba(15, 15, 15, 0.95));
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 25px; padding: 30px;
+        border-radius: 25px; padding: 35px;
         color: #fff; text-align: center;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.6);
-        margin-bottom: 20px;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+        margin-bottom: 25px;
     }
-    
     .id-header { 
-        background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
-        padding: 12px; border-radius: 15px; font-weight: 800; letter-spacing: 1px;
+        background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+        padding: 15px; border-radius: 15px; font-weight: 900; text-transform: uppercase;
     }
-    
-    .id-role-badge { 
-        background: #ffcc00; color: #000; padding: 4px 18px; border-radius: 50px; 
-        font-size: 13px; font-weight: 900; margin-top: 15px; display: inline-block;
-        box-shadow: 0 0 15px rgba(255, 204, 0, 0.4);
-    }
-    
-    .id-name { font-size: 32px; font-weight: 900; margin: 15px 0; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-    
+    .id-name { font-size: 34px; font-weight: 900; margin: 20px 0; letter-spacing: -1px; }
     .id-info-row { 
         display: flex; justify-content: space-between; 
-        border-bottom: 1px solid rgba(255,255,255,0.1); 
-        padding: 8px 0; font-size: 15px; color: #bbb;
+        border-bottom: 1px solid rgba(255,255,255,0.05); 
+        padding: 10px 0; font-size: 16px; color: #ccc;
     }
     
-    .tshirt-badge { 
-        font-weight: 800; padding: 10px; border-radius: 10px; margin-top: 20px; 
-        border: 1px solid rgba(255,255,255,0.2); text-align: center;
-    }
-    
-    .notes-box { 
-        background: rgba(255, 255, 255, 0.05); 
-        border-left: 4px solid #ff4b4b; 
-        padding: 10px; border-radius: 5px; 
-        margin-top: 15px; font-style: italic; font-size: 14px; 
-    }
+    /* Visual Badges */
+    .status-badge { font-weight: 800; padding: 8px 15px; border-radius: 10px; border: 1px solid; margin-top: 20px; text-align: center; }
+    .notes-box { background: rgba(255, 75, 75, 0.1); border-left: 5px solid #ff4b4b; padding: 12px; border-radius: 8px; margin-top: 15px; font-style: italic; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 1. DATABASE & SESSION INITIALIZATION
+# 1. SHARED DATA ENGINE
 # ==============================================================================
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-if 'portal_user' not in st.session_state: st.session_state.portal_user = None
 if 'logs' not in st.session_state: st.session_state.logs = []
-
-def add_log(msg):
-    t = datetime.now().strftime("%H:%M:%S")
-    user = st.session_state.get('user_name', 'System')
-    st.session_state.logs.insert(0, f"[{t}] {user}: {msg}")
-
 BUS_CAPACITY = 45 #
+
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
     try:
         df = conn.read(worksheet="Data", ttl=0)
-        # Ensure Schema for Reports and Feedback
         req_cols = ['Name', 'Role', 'Spot Phone', 'Guardian Phone', 'Ticket_Number', 
                     'Class', 'Roll', 'Entry_Status', 'Entry_Time', 'Bus_Number', 
                     'T_Shirt_Size', 'T_Shirt_Collected', 'Notes', 'Fault_Report', 'Image_URL']
         for c in req_cols:
             if c not in df.columns: df[c] = ''
-        # Clean Data (Fix 2634.0)
         for col in df.columns:
             df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).replace(['nan', 'None', ''], 'N/A')
         return df
@@ -108,119 +83,106 @@ if 'df' not in st.session_state: st.session_state.df = load_data()
 if 'stock' not in st.session_state: st.session_state.stock = load_stock()
 
 # ==============================================================================
-# 2. MULTI-PORTAL LOGIN TERMINAL
+# 2. STUDENT PORTAL: LOGIN & FEATURES
 # ==============================================================================
-def login_screen():
-    st.markdown("<h1 style='text-align:center;'>⚡ Event OS Ultimate</h1>", unsafe_allow_html=True)
-    tab_admin, tab_student = st.tabs(["🔐 Staff Terminal", "🎓 Student Portal"])
-    
-    with tab_admin:
-        u = st.text_input("Username", key="admin_u")
-        p = st.text_input("Password", type="password", key="admin_p")
-        if st.button("Authenticate", use_container_width=True):
-            USERS = {"admin": "1234", "gate": "entry26"}
-            if u in USERS and USERS[u] == p:
-                st.session_state.logged_in = True
-                st.session_state.user_role = "admin" if u=="admin" else "gate"
-                st.session_state.user_name = u
-                st.rerun()
-            else: st.error("Access Denied!")
-
-    with tab_student:
-        st.info("Log in using Ticket Number as ID and Spot Phone as Password.") #
-        s_id = st.text_input("Ticket Number", key="s_id")
-        s_pw = st.text_input("Spot Phone Number", type="password", key="s_pw")
-        if st.button("Log In to Portal", type="primary", use_container_width=True):
-            df = st.session_state.df
-            # Match ticket and phone
-            match = df[(df['Ticket_Number'] == s_id) & (df['Spot Phone'] == s_pw)]
-            if not match.empty:
-                st.session_state.portal_user = match.iloc[0]['Ticket_Number']
-                st.rerun()
-            else: st.error("Invalid Credentials! Please try again.")
-
-if not st.session_state.logged_in and not st.session_state.portal_user:
-    login_screen()
-    st.stop()
-
-# ==============================================================================
-# 3. STUDENT PORTAL MODULE
-# ==============================================================================
-if st.session_state.portal_user:
-    st.sidebar.title("🎓 My Portal")
+if 'portal_user' in st.session_state and st.session_state.portal_user:
+    st.sidebar.title("🎓 Student Portal")
     user_tick = st.session_state.portal_user
     user_data = st.session_state.df[st.session_state.df['Ticket_Number'] == user_tick].iloc[0]
+
+    p_menu = st.sidebar.radio("Navigation", ["🏠 Digital ID Card", "🚩 Report Faults", "📞 Contact Admin"])
     
-    p_menu = st.sidebar.radio("Quick Actions", ["🏠 Digital ID", "🚩 Report a Fault", "📞 Contact Organisers"])
-    
-    if p_menu == "🏠 Digital ID":
-        st.title(f"Hello, {user_data['Name']}!")
+    if p_menu == "🏠 Digital ID Card":
+        st.title(f"Welcome, {user_data['Name']}")
         st.markdown(f"""
         <div class="id-card">
-            <div class="id-header">OFFICIAL STUDENT PASS</div>
+            <div class="id-header">Official Digital Pass</div>
             <div class="id-name">{user_data['Name']}</div>
             <div class="id-info-row"><span>Ticket No</span><span>{user_data['Ticket_Number']}</span></div>
-            <div class="id-info-row"><span>Bus Assigned</span><span>{user_data['Bus_Number']}</span></div>
+            <div class="id-info-row"><span>Bus Number</span><span>{user_data['Bus_Number']}</span></div>
             <div class="id-info-row"><span>Check-In</span><span style="color:#00ff88;">{user_data['Entry_Status']}</span></div>
         </div>
         """, unsafe_allow_html=True)
 
-    elif p_menu == "🚩 Report a Fault":
-        st.header("Help Us Improve") #
-        with st.form("student_feedback"):
-            report = st.text_area("What is the issue or fault you've noticed?", placeholder="Submit our faults here...") #
-            img = st.file_uploader("Upload Image (Optional)", type=['jpg','png','jpeg']) #
-            if st.form_submit_button("Submit Report"):
+    elif p_menu == "🚩 Report Faults":
+        st.header("Help Us Fix Our Faults")
+        with st.form("student_report"):
+            report_msg = st.text_area("Detail your issue or complaint here:", placeholder="Type here...")
+            file = st.file_uploader("Upload Evidence Picture", type=['jpg','png','jpeg'])
+            if st.form_submit_button("Submit Complaint"):
                 idx = st.session_state.df[st.session_state.df['Ticket_Number'] == user_tick].index[0]
-                st.session_state.df.at[idx, 'Fault_Report'] = report
+                st.session_state.df.at[idx, 'Fault_Report'] = report_msg
                 conn.update(worksheet="Data", data=st.session_state.df)
-                st.success("Your report has been submitted to the organisers.")
+                st.success("Your report has been recorded and sent to the organisers.")
 
-    elif p_menu == "📞 Contact Organisers":
-        st.header("Direct Contact") #
-        st.write("📞 **Admin Team:** +880 1XXXXXXXXX")
+    elif p_menu == "📞 Contact Admin":
+        st.header("Emergency Contact List")
         st.write("🚌 **Transport Lead:** +880 1XXXXXXXXX")
+        st.write("🛠️ **Event Technical:** +880 1XXXXXXXXX")
 
-    if st.sidebar.button("🚪 Exit Portal"):
+    if st.sidebar.button("🚪 Logout Portal"):
         st.session_state.portal_user = None
         st.rerun()
     st.stop()
 
 # ==============================================================================
-# 4. STAFF TERMINAL (ADMIN/GATE)
+# 3. STAFF TERMINAL: LOGIN & MANAGEMENT
 # ==============================================================================
-with st.sidebar:
-    st.title("⚡ OS Terminal")
-    st.write(f"Session: **{st.session_state.user_role.upper()}**")
-    nav = st.radio("Navigation", ["🏠 Dashboard", "🔍 Search & Access", "👨‍🏫 Teachers", "🚌 Smart Fleet", "📦 Inventory", "📊 Analytics", "⚙️ Admin Logs"])
+if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+    st.markdown("<h1 style='text-align:center;'>⚡ Event Command Center</h1>", unsafe_allow_html=True)
+    t1, t2 = st.tabs(["🔐 Staff Authentication", "🎓 Student Portal Login"])
     
-    if st.button("🔄 Sync Cloud Data", use_container_width=True):
+    with t1:
+        u = st.text_input("Username", key="u_staff")
+        p = st.text_input("Password", type="password", key="p_staff")
+        if st.button("Authorize Staff"):
+            if u in ["admin", "gate"] and p in ["1234", "entry26"]:
+                st.session_state.logged_in, st.session_state.user_role, st.session_state.user_name = True, u, u
+                st.rerun()
+            else: st.error("Access Denied")
+    
+    with t2:
+        st.info("Log in with Ticket Number (ID) and Spot Phone (Password).")
+        s_id = st.text_input("Ticket ID")
+        s_ph = st.text_input("Spot Phone No", type="password")
+        if st.button("Enter Portal"):
+            match = st.session_state.df[(st.session_state.df['Ticket_Number'] == s_id) & (st.session_state.df['Spot Phone'] == s_ph)]
+            if not match.empty:
+                st.session_state.portal_user = s_id
+                st.rerun()
+            else: st.error("Record Not Found")
+    st.stop()
+
+# --- STAFF NAVIGATION ---
+with st.sidebar:
+    st.title("🛡️ Staff Terminal")
+    menu = st.radio("Management Suite", ["🏠 Dashboard", "🔍 Search & Entry", "🚌 Transport", "📦 Inventory", "📊 Analytics", "⚙️ Logs"])
+    if st.button("🔄 Cloud Refresh"):
         st.cache_data.clear()
-        st.session_state.df = load_data()
-        st.session_state.stock = load_stock()
+        st.session_state.df, st.session_state.stock = load_data(), load_stock()
         st.rerun()
-    if st.button("🚪 Logout Terminal", use_container_width=True):
+    if st.button("🚪 Staff Logout"):
         st.session_state.logged_in = False
         st.rerun()
 
-# --- MODULE: DASHBOARD ---
-if nav == "🏠 Dashboard":
+# ==============================================================================
+# 4. MODULES: DASHBOARD & SEARCH (WITH EDIT & UNASSIGN)
+# ==============================================================================
+if menu == "🏠 Dashboard":
     st.title("🚀 Event Overview")
     df = st.session_state.df
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Registered", len(df))
+    c1.metric("Total People", len(df))
     c2.metric("Checked In", len(df[df['Entry_Status'] == 'Done']))
     c3.metric("Kits Given", len(df[df['T_Shirt_Collected'] == 'Yes']))
-    reports = len(df[df['Fault_Report'] != 'N/A'])
-    c4.metric("Active Reports", reports, delta="Attention Required" if reports > 0 else "")
+    c4.metric("Student Reports", len(df[df['Fault_Report'] != 'N/A']))
     
-    st.subheader("Live Entry Log")
-    st.dataframe(df[df['Entry_Status']=='Done'].sort_values('Entry_Time', ascending=False).head(10)[['Name', 'Role', 'Entry_Time', 'Bus_Number']], use_container_width=True)
+    st.subheader("Live Entry Data")
+    st.dataframe(df[df['Entry_Status']=='Done'].sort_values('Entry_Time', ascending=False).head(10), use_container_width=True)
 
-# --- MODULE: SEARCH & ACCESS (Visuals + Full Edit + Unassign) ---
-elif nav == "🔍 Search & Access":
-    st.title("🔍 Access Management")
-    q = st.text_input("Enter Name / Ticket / Phone:").strip()
+elif menu == "🔍 Search & Entry":
+    st.title("🔍 Access & Edit Interface")
+    q = st.text_input("Scan Ticket / Name / Phone:").strip()
     
     if q:
         df = st.session_state.df
@@ -230,147 +192,92 @@ elif nav == "🔍 Search & Access":
         if not res.empty:
             idx = res.index[0]
             row = df.loc[idx]
-            qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={row['Ticket_Number']}" #
             
+            # --- Visual Indicators & ID Card ---
             is_ent = row['Entry_Status'] == 'Done'
-            c_color = "#00ff88" if is_ent else "#ff4b4b"
+            color = "#00ff88" if is_ent else "#ff4b4b"
             
-            # Kit Logic
-            sz = row['T_Shirt_Size']
-            rem = st.session_state.stock.get(sz, 0)
-            is_kit = row['T_Shirt_Collected'] == 'Yes'
-            if is_kit: kit_html = f'<div class="tshirt-badge" style="color:#00ff88; border-color:#00ff88;">👕 {sz} : GIVEN ✅</div>'
-            elif rem > 0: kit_html = f'<div class="tshirt-badge" style="color:#00c6ff; border-color:#00c6ff;">👕 {sz} : IN STOCK ({rem}) 📦</div>'
-            else: kit_html = f'<div class="tshirt-badge" style="color:#ff4b4b; border-color:#ff4b4b;">👕 {sz} : OUT OF STOCK ❌</div>'
-
             col1, col2 = st.columns([1, 1.5])
             with col1:
                 st.markdown(f"""
-                <div class="id-card" style="border: 2px solid {c_color};">
-                <div class="id-header" style="background:{c_color};">{'PASS VERIFIED' if is_ent else 'PENDING ENTRY'}</div>
-                <div class="id-role-badge">{row['Role'].upper()}</div>
-                <div class="id-name">{row['Name']}</div>
-                <div class="id-info-row"><span>Ticket</span><span>{row['Ticket_Number']}</span></div>
-                <div class="id-info-row"><span>Bus</span><span>{row['Bus_Number']}</span></div>
-                {kit_html}
-                <div class="notes-box">📝 Notes: {row['Notes']}</div>
-                <div style="background: white; padding: 10px; border-radius: 10px; display: inline-block; margin-top: 15px;"><img src="{qr_api}" width="100"></div>
+                <div class="id-card" style="border: 2px solid {color};">
+                    <div class="id-header" style="background:{color};">{'VERIFIED' if is_ent else 'PENDING'}</div>
+                    <div class="id-name">{row['Name']}</div>
+                    <div class="id-info-row"><span>Ticket</span><span>{row['Ticket_Number']}</span></div>
+                    <div class="id-info-row"><span>Bus</span><span>{row['Bus_Number']}</span></div>
+                    <div class="notes-box">Staff Notes: {row['Notes']}</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 if row['Fault_Report'] != 'N/A':
-                    st.error(f"⚠️ Student Report: {row['Fault_Report']}")
+                    st.error(f"⚠️ Student Complaint: {row['Fault_Report']}")
 
             with col2:
-                with st.form("profile_update_form"):
-                    st.subheader("📝 Edit Profile & Update Status") #
+                with st.form("master_edit"):
+                    st.subheader("📝 Universal Profile Editor")
                     ca, cb = st.columns(2)
                     e_name = ca.text_input("Full Name", row['Name'])
-                    e_phone = cb.text_input("Spot Phone (Required for Entry)", row['Spot Phone'])
+                    e_ph = cb.text_input("Spot Phone (Required)", row['Spot Phone'])
                     
                     cc, cd = st.columns(2)
-                    e_tick = cc.text_input("Ticket Number (Required for Entry)", row['Ticket_Number'])
-                    e_roll = cd.text_input("Roll No", row['Roll'])
+                    e_tk = cc.text_input("Ticket Number (Required)", row['Ticket_Number'])
+                    e_rl = cd.text_input("Roll Number", row['Roll'])
                     
                     st.markdown("---")
                     ce, cf = st.columns(2)
-                    e_ent = ce.toggle("Check-In Accomplished", value=is_ent)
-                    e_kit = cf.toggle("Merchandise Given", value=is_kit)
+                    mark_ent = ce.toggle("Check-In Accomplished", value=is_ent)
+                    mark_kit = cf.toggle("Merchandise Distributed", value=(row['T_Shirt_Collected']=='Yes'))
                     
-                    sizes = ["S", "M", "L", "XL", "XXL"]
-                    e_size = st.selectbox("Update Merchandise Size", sizes, index=sizes.index(sz) if sz in sizes else 2) #
-                    e_notes = st.text_area("Internal Staff Notes", value=row['Notes'] if row['Notes'] != 'N/A' else "") #
+                    e_sz = st.selectbox("Update Size", ["S", "M", "L", "XL", "XXL"], index=2)
+                    e_notes = st.text_area("Update Notes", value=row['Notes'])
                     
-                    if st.form_submit_button("💾 Save Profile Changes"):
-                        # Verification check
-                        if e_ent and (e_phone in ['N/A', ''] or e_tick in ['N/A', '']):
-                            st.error("❌ Spot Phone and Ticket Number are REQUIRED to grant entry!")
+                    if st.form_submit_button("💾 Synchronize with Cloud"):
+                        if mark_ent and (e_ph in ['N/A', ''] or e_tk in ['N/A', '']):
+                            st.error("❌ Phone and Ticket are MANDATORY for entry!")
                         else:
-                            # Inventory Logic
-                            if e_kit and not is_kit: st.session_state.stock[e_size] -= 1
-                            elif not e_kit and is_kit: st.session_state.stock[sz] += 1
-                            
                             st.session_state.df.at[idx, 'Name'] = e_name
-                            st.session_state.df.at[idx, 'Spot Phone'] = e_phone
-                            st.session_state.df.at[idx, 'Ticket_Number'] = e_tick
-                            st.session_state.df.at[idx, 'Roll'] = e_roll
-                            st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if e_ent else 'N/A'
-                            st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if e_kit else 'No'
-                            st.session_state.df.at[idx, 'T_Shirt_Size'] = e_size
+                            st.session_state.df.at[idx, 'Spot Phone'] = e_ph
+                            st.session_state.df.at[idx, 'Ticket_Number'] = e_tk
+                            st.session_state.df.at[idx, 'Roll'] = e_rl
+                            st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if mark_ent else 'N/A'
+                            st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if mark_kit else 'No'
+                            st.session_state.df.at[idx, 'T_Shirt_Size'] = e_sz
                             st.session_state.df.at[idx, 'Notes'] = e_notes
-                            if e_ent and row['Entry_Time'] == 'N/A': st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
-                            
+                            if mark_ent and row['Entry_Time'] == 'N/A': st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
                             conn.update(worksheet="Data", data=st.session_state.df)
-                            # Update Stock Sheet
-                            data_stock = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
-                            conn.update(worksheet="Stock", data=pd.DataFrame(data_stock))
-                            add_log(f"Synced changes for {e_name}")
-                            st.success("Successfully Synchronized!"); time.sleep(0.5); st.rerun()
+                            st.success("Synchronized!"); time.sleep(0.5); st.rerun()
 
-                # Dashboard Unassign Logic
                 if row['Bus_Number'] != 'Unassigned':
-                    if st.button("❌ UNASSIGN BUS IMMEDIATELY", type="secondary", use_container_width=True):
+                    if st.button("❌ UNASSIGN BUS FROM DASHBOARD", type="secondary", use_container_width=True):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
                         conn.update(worksheet="Data", data=st.session_state.df)
-                        add_log(f"Canceled bus assignment for {row['Name']}")
                         st.rerun()
-        else: st.warning("No records found.")
+        else: st.warning("No Results Found")
 
-# --- MODULE: SMART FLEET (Overflow + Class Assign) ---
-elif nav == "🚌 Smart Fleet":
-    st.title("🚌 Fleet Logistics Control")
+# --- MODULE: TRANSPORT (SMART OVERFLOW) ---
+elif menu == "🚌 Transport":
+    st.title("🚌 Logistics & Fleet Manager")
     buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
     cols = st.columns(4)
     for i, b in enumerate(buses):
-        num = len(st.session_state.df[st.session_state.df['Bus_Number'] == b])
-        cols[i].metric(b, f"{num}/{BUS_CAPACITY}", f"{BUS_CAPACITY-num} Free")
-        cols[i].progress(min(num/BUS_CAPACITY, 1.0))
+        occ = len(st.session_state.df[st.session_state.df['Bus_Number'] == b])
+        cols[i].metric(b, f"{occ}/{BUS_CAPACITY}", f"{BUS_CAPACITY-occ} Free")
+        cols[i].progress(min(occ/BUS_CAPACITY, 1.0))
     
-    st.markdown("---")
-    with st.expander("🚀 Smart Auto-Fill Logic (Role or Class)"): #
+    with st.expander("🚀 Smart Group Assignment (Auto-Overflow)"):
         ca, cb, cc = st.columns(3)
         mode = ca.selectbox("Assign By", ["Class", "Role"])
         val = cb.selectbox("Target Group", sorted(st.session_state.df[mode].unique()))
-        start = cc.selectbox("Start From", buses)
+        start = cc.selectbox("Start Bus", buses)
         
-        if st.button("Initiate Assignment Sequence"):
-            p_indices = st.session_state.df[st.session_state.df[mode] == val].index.tolist()
+        if st.button("Initiate Smart Assign"):
+            indices = st.session_state.df[st.session_state.df[mode] == val].index.tolist()
             b_idx = buses.index(start)
-            for p_idx in p_indices:
+            for p_idx in indices:
                 while b_idx < 4:
                     if len(st.session_state.df[st.session_state.df['Bus_Number'] == buses[b_idx]]) < BUS_CAPACITY:
                         st.session_state.df.at[p_idx, 'Bus_Number'] = buses[b_idx]
                         break
-                    else: b_idx += 1 # Overflow logic
+                    else: b_idx += 1 # Overflow Logic
             conn.update(worksheet="Data", data=st.session_state.df)
-            st.success("Logistics Updated!"); st.rerun()
-
-# --- MODULE: ADMIN LOGS & EXPORT (Printable Manifest) ---
-elif nav == "⚙️ Admin Logs":
-    st.title("⚙️ System Administration")
-    t1, t2 = st.tabs(["📜 System Activity", "📥 Manifest Export"])
-    with t1:
-        for entry in st.session_state.logs: st.text(entry)
-    with t2:
-        if st.button("📄 Generate Signature-Ready Bus Manifest"): #
-            html = "<html><head><meta charset='UTF-8'></head><body><h1>Bus Manifest - SIGNATURE LIST</h1>"
-            for b in ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]:
-                b_df = st.session_state.df[st.session_state.df['Bus_Number'] == b]
-                if not b_df.empty:
-                    html += f"<h2>{b} - Pass List</h2><table border='1' width='100%'><tr><th>Sl.</th><th>Class</th><th>Name</th><th>Ticket</th><th>In Sign</th><th>Out Sign</th></tr>"
-                    for j, (_, r) in enumerate(b_df.iterrows(), 1):
-                        html += f"<tr><td>{j}</td><td>{r['Class']}</td><td>{r['Name']}</td><td>{r['Ticket_Number']}</td><td width='80'></td><td width='80'></td></tr>"
-                    html += "</table><br>"
-            html += "</body></html>"
-            st.download_button("Download Print-Ready Manifest", html, "Bus_Manifest.html", "text/html")
-
-# --- OTHER MODULES ---
-elif nav == "👨‍🏫 Teachers":
-    st.title("👨‍🏫 Faculty Control")
-    st.dataframe(st.session_state.df[st.session_state.df['Role'] == 'Teacher'], use_container_width=True)
-
-elif nav == "📦 Inventory":
-    st.title("📦 T-Shirt Inventory Status")
-    cols = st.columns(5)
-    for i, s in enumerate(["S", "M", "L", "XL", "XXL"]):
-        cols[i].metric(s, st.session_state.stock.get(s, 0))
+            st.success("Group Logistics Updated!"); st.rerun()
