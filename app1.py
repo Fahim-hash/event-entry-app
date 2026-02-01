@@ -410,6 +410,7 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# --- TAB: ADMIN DATA ---
 elif menu == "📝 Admin Data":
     st.title("📝 Full DB"); st.dataframe(st.session_state.df)
     st.download_button("Download CSV", st.session_state.df.to_csv(), "data.csv")
