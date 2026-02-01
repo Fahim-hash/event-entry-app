@@ -29,9 +29,7 @@ st.markdown("""
     
     /* Input Fields Style */
     input[type="text"] {
-        border: 1px solid #444 !important;
-        background-color: #1a1a1a !important;
-        color: white !important;
+        border: 1px solid #444 !important; background-color: #1a1a1a !important; color: white !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -79,7 +77,7 @@ if not st.session_state.logged_in:
 
 # ==================== 4. MAIN APP LAYOUT ====================
 st.sidebar.title("⚡ Menu")
-menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
+menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "📜 Class Lists", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
 
 if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -87,7 +85,7 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.stock = load_stock()
     st.rerun()
 
-# --- TAB 1: SEARCH & ENTRY (WITH EDIT & VALIDATION) ---
+# --- TAB 1: SEARCH & ENTRY (WITH SIZE EDIT) ---
 if menu == "🔍 Search & Entry":
     st.title("🔍 Search, Edit & Entry")
     
@@ -123,7 +121,7 @@ if menu == "🔍 Search & Entry":
                     <div class="info-row"><span>Phone:</span> <b>{row['Spot Phone']}</b></div>
                     <div class="info-row"><span>Bus:</span> <b>{row['Bus_Number']}</b></div>
                     <div style="margin-top:10px; border:1px solid #555; padding:8px; border-radius:8px;">
-                        👕 Size: <b>{sz}</b> <br>
+                        👕 Assigned Size: <b>{sz}</b> <br>
                         Status: {'✅ GIVEN' if is_kit else f'📦 Stock: {rem}'}
                     </div>
                 </div>
@@ -134,39 +132,51 @@ if menu == "🔍 Search & Entry":
                 with st.container(border=True):
                     st.subheader("✏️ Edit Information")
                     
-                    # 🔥 Editable Fields 🔥
+                    # Editable Fields
                     new_name = st.text_input("Name", value=row['Name'])
                     c_ph, c_tk = st.columns(2)
                     new_phone = c_ph.text_input("Spot Phone (Required)", value=row['Spot Phone'])
                     new_ticket = c_tk.text_input("Ticket No (Required)", value=row['Ticket_Number'])
                     
+                    # 🔥 SIZE CHANGE OPTION 🔥
+                    sz_list = ["S", "M", "L", "XL", "XXL"]
+                    curr_sz_idx = sz_list.index(sz) if sz in sz_list else 2
+                    new_size = st.selectbox("Update T-Shirt Size", sz_list, index=curr_sz_idx)
+                    
                     st.markdown("---")
                     st.subheader("⚡ Actions")
                     
-                    # 1. Entry & Kit Toggles
+                    # Actions
                     c_a, c_b = st.columns(2)
                     new_ent = c_a.toggle("✅ Mark Entry", value=is_ent)
                     new_kit = c_b.toggle("👕 Give T-Shirt", value=is_kit)
                     
-                    # 2. Bus Assignment
                     buses = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
                     curr_bus_idx = buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0
                     new_bus = st.selectbox("🚌 Assign Bus", buses, index=curr_bus_idx)
                     
-                    # 3. Save Button Logic
+                    # Save Logic
                     if st.button("💾 Save Changes", type="primary", use_container_width=True):
-                        # 🔥 VALIDATION: Phone & Ticket CANNOT be empty 🔥
+                        # Validation
                         if not new_phone or new_phone == 'N/A' or not new_ticket or new_ticket == 'N/A':
                             st.error("❌ Error: Spot Phone and Ticket Number are REQUIRED!")
                         else:
-                            # Stock Update
-                            if new_kit and not is_kit: st.session_state.stock[sz] -= 1
-                            elif not new_kit and is_kit: st.session_state.stock[sz] += 1
+                            # Advanced Stock Logic (Handle Size Swap)
+                            if new_kit:
+                                if is_kit: 
+                                    if sz != new_size: # Size changed while kit already given
+                                        st.session_state.stock[sz] += 1 # Return old
+                                        st.session_state.stock[new_size] -= 1 # Take new
+                                else: # Kit given for first time
+                                    st.session_state.stock[new_size] -= 1
+                            elif not new_kit and is_kit: # Kit returned/cancelled
+                                st.session_state.stock[sz] += 1
                             
                             # Data Update
                             st.session_state.df.at[idx, 'Name'] = new_name
                             st.session_state.df.at[idx, 'Spot Phone'] = new_phone
                             st.session_state.df.at[idx, 'Ticket_Number'] = new_ticket
+                            st.session_state.df.at[idx, 'T_Shirt_Size'] = new_size # Size Update
                             
                             st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else 'N/A'
                             st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
@@ -180,13 +190,37 @@ if menu == "🔍 Search & Entry":
                             s_data = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
                             conn.update(worksheet="Stock", data=pd.DataFrame(s_data))
                             
-                            st.success("✅ Info Updated Successfully!")
+                            st.success("✅ Updated Successfully!")
                             time.sleep(0.5)
                             st.rerun()
         else:
             st.warning("No user found!")
 
-# --- TAB 2: BUS MANAGER ---
+# --- TAB 2: CLASS LISTS (NEW FEATURE) ---
+elif menu == "📜 Class Lists":
+    st.title("📜 Class Wise List")
+    
+    # Get Unique Classes
+    classes = sorted(st.session_state.df['Class'].unique().tolist())
+    if '' in classes: classes.remove('')
+    if 'N/A' in classes: classes.remove('N/A')
+    
+    selected_class = st.selectbox("Select Class:", ["All"] + classes)
+    
+    if selected_class == "All":
+        view_df = st.session_state.df
+    else:
+        view_df = st.session_state.df[st.session_state.df['Class'] == selected_class]
+    
+    # Metrics for Class
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Students in List", len(view_df))
+    c2.metric("Checked In", len(view_df[view_df['Entry_Status'] == 'Done']))
+    c3.metric("Pending", len(view_df) - len(view_df[view_df['Entry_Status'] == 'Done']))
+    
+    st.dataframe(view_df[['Name', 'Class', 'Roll', 'Ticket_Number', 'Spot Phone', 'Entry_Status', 'Bus_Number']], use_container_width=True)
+
+# --- TAB 3: BUS MANAGER ---
 elif menu == "🚌 Bus Manager":
     st.title("🚌 Fleet Management")
     
@@ -218,7 +252,7 @@ elif menu == "🚌 Bus Manager":
         st.success("Done!")
         st.rerun()
 
-# --- TAB 3: DASHBOARD ---
+# --- TAB 4: DASHBOARD ---
 elif menu == "📊 Dashboard":
     st.title("📊 Event Stats")
     df = st.session_state.df
@@ -230,7 +264,7 @@ elif menu == "📊 Dashboard":
     
     st.bar_chart(df['T_Shirt_Size'].value_counts())
 
-# --- TAB 4: ADMIN DATA ---
+# --- TAB 5: ADMIN DATA ---
 elif menu == "📝 Admin Data":
     st.title("📝 Full Database")
     st.dataframe(st.session_state.df)
