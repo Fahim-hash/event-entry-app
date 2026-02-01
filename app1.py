@@ -6,72 +6,102 @@ import time
 import pytz
 import streamlit.components.v1 as components
 
-# ==================== 1. CONFIG & STYLE (PREMIUM UI) ====================
-st.set_page_config(page_title="Event OS Pro", page_icon="⚡", layout="wide")
+# ==================== 1. CONFIG & STYLE (THEMED BACKGROUND) ====================
+st.set_page_config(page_title="Event OS Pro", page_icon="🎆", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117; color: #e0e0e0; }
+    /* 🔥 FULL PAGE BACKGROUND WITH FADED DJ THEME 🔥 */
+    .stApp {
+        background-color: #000000; /* Fallback */
+        
+        /* Dark Overlay (0.85) + DJ Image */
+        background-image: 
+            linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.9)),
+            url("https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop");
+            
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        color: #ffffff;
+    }
     
-    /* === ID CARD STYLES BY ROLE === */
+    /* SIDEBAR - Semi-Transparent Dark */
+    section[data-testid="stSidebar"] {
+        background-color: rgba(10, 10, 10, 0.9);
+        border-right: 1px solid #333;
+    }
+    
+    /* METRICS BOX - Glassmorphism */
+    div[data-testid="stMetric"] {
+        background-color: rgba(20, 20, 20, 0.7); /* Transparent */
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-left: 5px solid #d500f9;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    div[data-testid="stMetricLabel"] { color: #dcdcdc !important; }
+    div[data-testid="stMetricValue"] { color: #ffffff !important; text-shadow: 0 0 10px #d500f9; }
+    
+    /* === ID CARD STYLES (PREMIUM) === */
     
     /* 1. STUDENT (Modern Blue) */
     .card-student {
-        background: linear-gradient(145deg, #0f2027, #203a43, #2c5364);
+        background: linear-gradient(145deg, rgba(15, 32, 39, 0.9), rgba(44, 83, 100, 0.9));
+        backdrop-filter: blur(5px);
         border: 1px solid #4ca1af;
         box-shadow: 0 4px 15px rgba(76, 161, 175, 0.3);
         border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
     }
 
-    /* 2. ORGANIZER (Event Theme - Neon Purple) */
+    /* 2. ORGANIZER (Neon Purple) */
     .card-organizer {
-        background: linear-gradient(135deg, #3a0088 0%, #7209b7 100%);
+        background: linear-gradient(135deg, rgba(58, 0, 136, 0.9), rgba(114, 9, 183, 0.9));
         border: 2px solid #f72585;
         box-shadow: 0 0 20px rgba(247, 37, 133, 0.6);
         border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
     }
 
-    /* 3. TEACHER / STAFF (Professional Teal/Green) */
+    /* 3. TEACHER / STAFF (Teal) */
     .card-staff {
-        background: linear-gradient(145deg, #11998e, #38ef7d);
+        background: linear-gradient(145deg, rgba(17, 153, 142, 0.9), rgba(56, 239, 125, 0.9));
         border: 2px solid #ffffff;
         box-shadow: 0 4px 15px rgba(56, 239, 125, 0.4);
         border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
-        color: #000 !important; /* Dark text for light bg */
+        color: #000 !important;
     }
     .card-staff .id-name, .card-staff .info-row { color: #000 !important; font-weight: bold; }
 
-    /* 4. VOLUNTEER (Energetic Orange) */
+    /* 4. VOLUNTEER (Orange) */
     .card-volunteer {
-        background: linear-gradient(145deg, #ff416c, #ff4b2b);
+        background: linear-gradient(145deg, rgba(255, 65, 108, 0.9), rgba(255, 75, 43, 0.9));
         border: 1px solid #ff9966;
         box-shadow: 0 4px 15px rgba(255, 75, 43, 0.4);
         border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
     }
 
-    /* 5. ELITE (Principal / College Head - GOLD LUXURY) */
+    /* 5. ELITE (Gold) */
     .card-elite {
-        background: radial-gradient(ellipse farthest-corner at right bottom, #FEDB37 0%, #FDB931 8%, #9f7928 30%, #8A6E2F 40%, transparent 80%),
-                    radial-gradient(ellipse farthest-corner at left top, #FFFFFF 0%, #FFFFAC 8%, #D1B464 25%, #5d4a1f 62.5%, #5d4a1f 100%);
-        border: 3px solid #FFD700;
-        box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+        background: radial-gradient(ellipse at center, #FFD700 0%, #B8860B 100%);
+        border: 3px solid #FFF;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
         border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
         color: #000 !important;
     }
-    .card-elite .id-name { color: #000 !important; text-transform: uppercase; letter-spacing: 2px; text-shadow: none; }
-    .card-elite .role-badge { background: #000 !important; color: #FFD700 !important; border: 1px solid #FFD700; }
-    .card-elite .info-row { color: #222 !important; border-bottom: 1px solid #555; }
+    .card-elite .id-name, .card-elite .info-row { color: #000 !important; font-weight: bold; }
 
-    /* COMMON TEXT STYLES */
+    /* COMMON TEXT */
     .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; color: white; }
     .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.2); padding: 8px 0; font-size: 14px; }
-    .role-badge { background: rgba(0,0,0,0.5); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; border: 1px solid rgba(255,255,255,0.3); }
+    .role-badge { background: rgba(0,0,0,0.6); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; border: 1px solid rgba(255,255,255,0.3); }
     
     /* INPUT FIELDS */
-    .stTextInput input {
-        background-color: #262730;
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
+        background-color: rgba(0, 0, 0, 0.8);
         color: white;
-        border: 1px solid #444;
+        border: 1px solid #555;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -105,7 +135,7 @@ if 'stock' not in st.session_state: st.session_state.stock = load_stock()
 # ==================== 3. LOGIN ====================
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if not st.session_state.logged_in:
-    st.title("🔐 Admin Login")
+    st.title("🔐 Willian's 26 | Admin")
     c1, c2 = st.columns(2)
     with c1:
         u = st.text_input("Username")
@@ -136,7 +166,7 @@ timer_html = f"""
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }}
     .label {{ font-family: sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; color: #00ff88; }}
-    .time {{ font-size: 28px; font-weight: bold; letter-spacing: 1px; color: #fff; }}
+    .time {{ font-size: 28px; font-weight: bold; letter-spacing: 1px; color: #fff; text-shadow: 0 0 10px #00ff88; }}
     .sub-labels {{ font-size: 10px; opacity: 0.6; margin-top: 2px; font-family: sans-serif; }}
 </style>
 </head>
@@ -189,18 +219,13 @@ if menu == "🔍 Search & Entry":
             idx = res.index[0]
             row = df.loc[idx]
             
-            # Logic for Card Style
+            # Card Style Logic
             role = row['Role']
-            if role in ["Principal", "College Head"]:
-                card_class = "card-elite"
-            elif role == "Organizer":
-                card_class = "card-organizer"
-            elif role in ["Teacher", "College Staff"]:
-                card_class = "card-staff"
-            elif role == "Volunteer":
-                card_class = "card-volunteer"
-            else:
-                card_class = "card-student" # Default
+            if role in ["Principal", "College Head"]: card_class = "card-elite"
+            elif role == "Organizer": card_class = "card-organizer"
+            elif role in ["Teacher", "College Staff"]: card_class = "card-staff"
+            elif role == "Volunteer": card_class = "card-volunteer"
+            else: card_class = "card-student"
 
             is_ent = row['Entry_Status'] == 'Done'
             is_kit = row['T_Shirt_Collected'] == 'Yes'
@@ -209,9 +234,7 @@ if menu == "🔍 Search & Entry":
             
             col1, col2 = st.columns([1, 1.5])
             with col1:
-                # Dynamic Border Color for Entry Status
                 status_color = "#00ff88" if is_ent else "#ff4b4b"
-                
                 st.markdown(f"""
                 <div class="{card_class}">
                     <div style="background:{status_color}; color:black; font-weight:bold; padding:5px; border-radius:5px; margin-bottom:10px;">
