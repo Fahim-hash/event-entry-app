@@ -81,7 +81,7 @@ if not st.session_state.logged_in:
 
 # ==================== 4. MAIN APP LAYOUT ====================
 st.sidebar.title("⚡ Menu")
-menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "📜 Class Lists", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
+menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 Class Lists", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
 
 if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -140,7 +140,7 @@ if menu == "🔍 Search & Entry":
                     
                     c_name, c_role = st.columns([1.5, 1])
                     new_name = c_name.text_input("Name", value=row['Name'])
-                    role_opts = ["Student", "Volunteer", "Teacher", "Organizer", "Staff"]
+                    role_opts = ["Student", "Volunteer", "Teacher", "College Staff", "Organizer"]
                     new_role = c_role.selectbox("Role", role_opts, index=role_opts.index(row['Role']) if row['Role'] in role_opts else 0)
                     
                     c_ph, c_tk = st.columns(2)
@@ -160,46 +160,42 @@ if menu == "🔍 Search & Entry":
                     new_bus = st.selectbox("🚌 Assign Bus", buses, index=buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0)
                     
                     if st.button("💾 Save Changes", type="primary", use_container_width=True):
-                        # 1. Validation: Fields Empty?
+                        # Validation
                         if not new_phone or new_phone == 'N/A' or not new_ticket or new_ticket == 'N/A':
                             st.error("❌ Phone & Ticket are REQUIRED!")
                         else:
-                            # 2. 🔥 BUS RESERVATION LOGIC 🔥
-                            can_assign_bus = True
+                            # Bus Limit Check
+                            can_assign = True
                             if new_bus != "Unassigned":
-                                # Calculate current counts in target bus
                                 bus_pax = df[df['Bus_Number'] == new_bus]
-                                # Exclude current user from count if already in that bus
                                 bus_pax = bus_pax[bus_pax.index != idx]
-                                
                                 total_in_bus = len(bus_pax)
                                 student_in_bus = len(bus_pax[bus_pax['Role'] == 'Student'])
                                 
-                                # LOGIC:
                                 if new_role == "Student":
-                                    if student_in_bus >= STUDENT_LIMIT: # >= 43
-                                        st.error(f"⛔ {new_bus} Student Limit Reached (43/45)! Last 2 seats reserved for Organizer/Teacher.")
-                                        can_assign_bus = False
+                                    if student_in_bus >= STUDENT_LIMIT:
+                                        st.error(f"⛔ {new_bus} Student Limit Reached (43/45)! Seats Reserved.")
+                                        can_assign = False
                                     elif total_in_bus >= BUS_CAPACITY:
-                                        st.error(f"⛔ {new_bus} is FULL (45/45)!")
-                                        can_assign_bus = False
-                                else: # Teacher/Organizer/Volunteer
+                                        st.error(f"⛔ {new_bus} is FULL!")
+                                        can_assign = False
+                                else: # Teachers/Staff
                                     if total_in_bus >= BUS_CAPACITY:
-                                        st.error(f"⛔ {new_bus} is FULL (45/45)!")
-                                        can_assign_bus = False
+                                        st.error(f"⛔ {new_bus} is FULL!")
+                                        can_assign = False
 
-                            if can_assign_bus:
-                                # Stock Logic
+                            if can_assign:
+                                # Stock Update
                                 if new_kit:
-                                    if is_kit and sz != new_size: # Swapped
+                                    if is_kit and sz != new_size:
                                         st.session_state.stock[sz] += 1
                                         st.session_state.stock[new_size] -= 1
-                                    elif not is_kit: # New given
+                                    elif not is_kit:
                                         st.session_state.stock[new_size] -= 1
-                                elif not new_kit and is_kit: # Returned
+                                elif not new_kit and is_kit:
                                     st.session_state.stock[sz] += 1
                                 
-                                # Save Data
+                                # Data Save
                                 st.session_state.df.at[idx, 'Name'] = new_name
                                 st.session_state.df.at[idx, 'Role'] = new_role
                                 st.session_state.df.at[idx, 'Spot Phone'] = new_phone
@@ -219,7 +215,53 @@ if menu == "🔍 Search & Entry":
                                 time.sleep(0.5); st.rerun()
         else: st.warning("No user found!")
 
-# --- TAB 2: CLASS LISTS ---
+# --- TAB 2: ADD STAFF/TEACHER (NEW FEATURE) ---
+elif menu == "➕ Add Staff/Teacher":
+    st.title("➕ Manually Add Teacher or Staff")
+    
+    with st.form("add_staff_form"):
+        c1, c2 = st.columns(2)
+        name = c1.text_input("Full Name")
+        phone = c2.text_input("Phone Number")
+        
+        c3, c4 = st.columns(2)
+        role = c3.selectbox("Role", ["Teacher", "College Staff", "Guest"])
+        is_class_teacher = c4.checkbox("Is Class Teacher?")
+        
+        class_name = "N/A"
+        if is_class_teacher:
+            class_name = st.text_input("Assigned Class Name (e.g., Class 10 - Science)")
+        
+        if st.form_submit_button("➕ Add to Database"):
+            if name and phone:
+                # Create Manual ID
+                manual_ticket = f"MAN-{int(time.time())}"
+                
+                new_entry = {
+                    'Name': name,
+                    'Role': role,
+                    'Spot Phone': phone,
+                    'Guardian Phone': 'N/A',
+                    'Ticket_Number': manual_ticket,
+                    'Class': class_name,
+                    'Roll': 'N/A',
+                    'Entry_Status': 'N/A',
+                    'Entry_Time': 'N/A',
+                    'Bus_Number': 'Unassigned',
+                    'T_Shirt_Size': 'L', # Default
+                    'T_Shirt_Collected': 'No',
+                    'Notes': 'Manual Entry'
+                }
+                
+                st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new_entry])], ignore_index=True)
+                conn.update(worksheet="Data", data=st.session_state.df)
+                st.success(f"✅ {name} ({role}) added successfully!")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("❌ Name and Phone are required!")
+
+# --- TAB 3: CLASS LISTS ---
 elif menu == "📜 Class Lists":
     st.title("📜 Class Wise List")
     classes = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
@@ -232,7 +274,7 @@ elif menu == "📜 Class Lists":
     c3.metric("Pending", len(v_df)-len(v_df[v_df['Entry_Status']=='Done']))
     st.dataframe(v_df[['Name', 'Class', 'Roll', 'Spot Phone', 'Entry_Status']], use_container_width=True)
 
-# --- TAB 3: BUS MANAGER (WITH RESERVED SEAT LOGIC) ---
+# --- TAB 4: BUS MANAGER ---
 elif menu == "🚌 Bus Manager":
     st.title("🚌 Fleet Management")
     
@@ -254,7 +296,7 @@ elif menu == "🚌 Bus Manager":
     else: st.info("Bus Empty")
     
     st.markdown("---")
-    st.subheader("🚀 Smart Auto-Assign (With 43 Limit)")
+    st.subheader("🚀 Smart Auto-Assign")
     c1, c2, c3 = st.columns(3)
     role = c1.selectbox("Role", ["Student", "Volunteer", "Teacher"])
     start_b = c2.selectbox("Start Bus", buses)
@@ -263,7 +305,6 @@ elif menu == "🚌 Bus Manager":
         mask = st.session_state.df['Role'] == role
         indices = st.session_state.df[mask].index.tolist()
         b_idx = buses.index(start_b)
-        
         assigned_cnt = 0
         for pid in indices:
             while b_idx < 4:
@@ -272,25 +313,22 @@ elif menu == "🚌 Bus Manager":
                 total_load = len(curr_df)
                 stu_load = len(curr_df[curr_df['Role'] == 'Student'])
                 
-                # 🔥 RESERVATION LOGIC 🔥
                 can_fit = False
                 if role == "Student":
-                    if stu_load < STUDENT_LIMIT: can_fit = True # Must be < 43
+                    if stu_load < STUDENT_LIMIT: can_fit = True
                 else:
-                    if total_load < BUS_CAPACITY: can_fit = True # Must be < 45
+                    if total_load < BUS_CAPACITY: can_fit = True
                 
                 if can_fit:
                     st.session_state.df.at[pid, 'Bus_Number'] = curr_bus
                     assigned_cnt += 1
                     break
-                else:
-                    b_idx += 1 # Try next bus
-                    
+                else: b_idx += 1
         conn.update(worksheet="Data", data=st.session_state.df)
         st.success(f"Assigned {assigned_cnt} people!")
         st.rerun()
 
-# --- TAB 4: DASHBOARD ---
+# --- TAB 5: DASHBOARD ---
 elif menu == "📊 Dashboard":
     st.title("📊 Event Stats")
     df = st.session_state.df
@@ -300,7 +338,7 @@ elif menu == "📊 Dashboard":
     c3.metric("Kits", len(df[df['T_Shirt_Collected']=='Yes']))
     st.bar_chart(df['T_Shirt_Size'].value_counts())
 
-# --- TAB 5: ADMIN DATA ---
+# --- TAB 6: ADMIN DATA ---
 elif menu == "📝 Admin Data":
     st.title("📝 Full Database")
     st.dataframe(st.session_state.df)
