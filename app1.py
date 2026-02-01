@@ -38,7 +38,7 @@ st.markdown("""
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # Constants
-BUS_CAPACITY = 45  # Hard Limit for EVERYONE
+BUS_CAPACITY = 45  # Hard Limit
 
 def load_data():
     try:
@@ -88,7 +88,7 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.stock = load_stock()
     st.rerun()
 
-# --- TAB 1: SEARCH & ENTRY ---
+# --- TAB 1: SEARCH & ENTRY (WITH UNASSIGN BUTTON) ---
 if menu == "🔍 Search & Entry":
     st.title("🔍 Search, Edit & Entry")
     
@@ -132,6 +132,15 @@ if menu == "🔍 Search & Entry":
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # 🔥 INSTANT UNASSIGN BUTTON 🔥
+                if row['Bus_Number'] != "Unassigned":
+                    if st.button(f"❌ Unassign from {row['Bus_Number']}", type="secondary", use_container_width=True):
+                        st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
+                        conn.update(worksheet="Data", data=st.session_state.df)
+                        st.success(f"Removed from {row['Bus_Number']}!")
+                        time.sleep(0.5)
+                        st.rerun()
 
             with col2:
                 with st.container(border=True):
@@ -163,17 +172,12 @@ if menu == "🔍 Search & Entry":
                         if not new_phone or new_phone == 'N/A' or not new_ticket or new_ticket == 'N/A':
                             st.error("❌ Phone & Ticket are REQUIRED!")
                         else:
-                            # Bus Limit Check (Total 45 Mixed)
+                            # Bus Limit Check (45 Max)
                             can_assign = True
-                            if new_bus != "Unassigned":
-                                # Count existing passengers in that bus (excluding current user)
+                            if new_bus != "Unassigned" and new_bus != row['Bus_Number']: # Only check if bus changed
                                 bus_pax = df[df['Bus_Number'] == new_bus]
-                                bus_pax = bus_pax[bus_pax.index != idx]
-                                total_in_bus = len(bus_pax)
-                                
-                                # 🔥 HARD LIMIT 45 🔥
-                                if total_in_bus >= BUS_CAPACITY:
-                                    st.error(f"⛔ {new_bus} is FULL ({total_in_bus}/{BUS_CAPACITY})! Cannot add more.")
+                                if len(bus_pax) >= BUS_CAPACITY:
+                                    st.error(f"⛔ {new_bus} is FULL ({len(bus_pax)}/{BUS_CAPACITY})!")
                                     can_assign = False
 
                             if can_assign:
@@ -252,7 +256,7 @@ elif menu == "📜 Class Lists":
     c3.metric("Pending", len(v_df)-len(v_df[v_df['Entry_Status']=='Done']))
     st.dataframe(v_df[['Name', 'Class', 'Roll', 'Spot Phone', 'Entry_Status']], use_container_width=True)
 
-# --- TAB 4: BUS MANAGER ---
+# --- TAB 4: BUS MANAGER (WITH QUICK UNASSIGN TOOL) ---
 elif menu == "🚌 Bus Manager":
     st.title("🚌 Fleet Management")
     
@@ -264,6 +268,25 @@ elif menu == "🚌 Bus Manager":
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free")
         cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     
+    st.markdown("---")
+    
+    # 🔥 NEW: QUICK UNASSIGN TOOL 🔥
+    with st.expander("🗑️ Quick Unassign Tool (By Ticket Number)"):
+        c_un1, c_un2 = st.columns([3, 1])
+        un_ticket = c_un1.text_input("Enter Ticket Number to Unassign:")
+        if c_un2.button("Unassign Now"):
+            target = st.session_state.df[st.session_state.df['Ticket_Number'] == un_ticket]
+            if not target.empty:
+                t_idx = target.index[0]
+                old_bus = st.session_state.df.at[t_idx, 'Bus_Number']
+                if old_bus != "Unassigned":
+                    st.session_state.df.at[t_idx, 'Bus_Number'] = 'Unassigned'
+                    conn.update(worksheet="Data", data=st.session_state.df)
+                    st.success(f"✅ Removed Ticket {un_ticket} from {old_bus}!")
+                    time.sleep(1); st.rerun()
+                else: st.warning("User is already Unassigned.")
+            else: st.error("Ticket not found!")
+
     st.markdown("---")
     st.subheader("📋 Bus Passenger List")
     sel_bus = st.selectbox("Select Bus:", buses)
@@ -289,13 +312,12 @@ elif menu == "🚌 Bus Manager":
                 curr_bus = buses[b_idx]
                 curr_df = st.session_state.df[st.session_state.df['Bus_Number'] == curr_bus]
                 
-                # 🔥 Total 45 Check 🔥
+                # Limit Check 45
                 if len(curr_df) < BUS_CAPACITY:
                     st.session_state.df.at[pid, 'Bus_Number'] = curr_bus
                     assigned_cnt += 1
                     break
-                else:
-                    b_idx += 1 # Try next bus if full
+                else: b_idx += 1 
         
         conn.update(worksheet="Data", data=st.session_state.df)
         st.success(f"Assigned {assigned_cnt} people!")
