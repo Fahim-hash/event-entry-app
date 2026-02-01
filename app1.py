@@ -4,6 +4,7 @@ from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import time
 import pytz
+import streamlit.components.v1 as components  # 🔥 IMPORT COMPONENTS 🔥
 
 # ==================== 1. CONFIG & STYLE ====================
 st.set_page_config(page_title="Event OS Pro", page_icon="⚡", layout="wide")
@@ -67,49 +68,73 @@ if not st.session_state.logged_in:
             else: st.error("Wrong Password!")
     st.stop()
 
-# ==================== 4. LIVE JS TIMER ====================
+# ==================== 4. LIVE TIMER (FIXED) ====================
 st.sidebar.title("⚡ Menu")
 
-# JavaScript Timer (No Refresh Needed)
-# Target: Feb 3, 2026 07:00:00 GMT+6
+# Target Time: Feb 3, 2026 07:00:00 GMT+6
 target_iso = "2026-02-03T07:00:00+06:00"
 
-st.sidebar.markdown(f"""
-<div style="background: linear-gradient(45deg, #ff00cc, #333399); padding: 15px; border-radius: 12px; text-align: center; color: white; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
-    <h4 style="margin:0; font-size: 13px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px;">🚀 Event Starts In</h4>
-    <div id="countdown" style="font-size: 22px; font-weight: 900; margin: 8px 0; text-shadow: 0 0 10px rgba(255,255,255,0.5); font-family: monospace;">
-        Loading...
+# 🔥 NEW COMPONENT METHOD (100% Works) 🔥
+timer_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    body {{ margin: 0; font-family: sans-serif; background-color: #0e1117; color: white; }}
+    .timer-box {{
+        background: linear-gradient(45deg, #ff00cc, #333399);
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        border: 1px solid rgba(255,255,255,0.2);
+    }}
+    .label {{ font-size: 13px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }}
+    .time {{ font-size: 22px; font-weight: 900; font-family: monospace; text-shadow: 0 0 10px rgba(255,255,255,0.5); }}
+    .date {{ font-size: 11px; opacity: 0.7; margin-top: 5px; }}
+</style>
+</head>
+<body>
+    <div class="timer-box">
+        <div class="label">🚀 Event Starts In</div>
+        <div id="countdown" class="time">-- : -- : -- : --</div>
+        <div class="date">3rd Feb 2026, 7:00 AM</div>
     </div>
-    <small style="opacity: 0.7;">3rd Feb 2026, 7:00 AM</small>
-</div>
 
 <script>
 function updateTimer() {{
     const target = new Date("{target_iso}").getTime();
-    const now = new Date().getTime();
-    const diff = target - now;
+    
+    // Timer Loop
+    setInterval(function() {{
+        const now = new Date().getTime();
+        const diff = target - now;
 
-    if (diff < 0) {{
-        document.getElementById("countdown").innerHTML = "EVENT STARTED!";
-        return;
-    }}
+        if (diff < 0) {{
+            document.getElementById("countdown").innerHTML = "EVENT STARTED!";
+            return;
+        }}
 
-    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const s = Math.floor((diff % (1000 * 60)) / 1000);
+        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
 
-    // Format with leading zeros
-    const hh = h < 10 ? "0" + h : h;
-    const mm = m < 10 ? "0" + m : m;
-    const ss = s < 10 ? "0" + s : s;
+        const hh = h < 10 ? "0" + h : h;
+        const mm = m < 10 ? "0" + m : m;
+        const ss = s < 10 ? "0" + s : s;
 
-    document.getElementById("countdown").innerHTML = d + "d : " + hh + "h : " + mm + "m : " + ss + "s";
+        document.getElementById("countdown").innerHTML = d + "d : " + hh + "h : " + mm + "m : " + ss + "s";
+    }}, 1000);
 }}
-setInterval(updateTimer, 1000);
 updateTimer();
 </script>
-""", unsafe_allow_html=True)
+</body>
+</html>
+"""
+
+# Render the timer in Sidebar using Components
+with st.sidebar:
+    components.html(timer_html, height=120)
 
 menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 View Lists (Student/Staff)", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
 
@@ -154,34 +179,28 @@ if menu == "🔍 Search & Entry":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # 🔥 FIXED INDIVIDUAL UNASSIGN 🔥
+                # UNASSIGN FIX
                 if row['Bus_Number'] != "Unassigned":
-                    # Added unique key to prevent conflict
                     if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
                         conn.update(worksheet="Data", data=st.session_state.df)
-                        st.success(f"Removed from {row['Bus_Number']}!")
-                        time.sleep(0.5); st.rerun()
+                        st.success(f"Removed from {row['Bus_Number']}!"); time.sleep(0.5); st.rerun()
 
             with col2:
                 with st.container(border=True):
                     st.subheader("✏️ Edit & Actions")
                     c_n, c_r = st.columns([1.5, 1])
                     new_name = c_n.text_input("Name", row['Name'])
-                    
                     role_opts = ["Student", "Volunteer", "Teacher", "College Staff", "Organizer", "Principal", "College Head"]
                     new_role = c_r.selectbox("Role", role_opts, index=role_opts.index(row['Role']) if row['Role'] in role_opts else 0)
-                    
                     c_p, c_t = st.columns(2)
                     new_phone = c_p.text_input("Phone", row['Spot Phone'])
                     new_ticket = c_t.text_input("Ticket", row['Ticket_Number'])
                     new_size = st.selectbox("Size", ["S", "M", "L", "XL", "XXL"], index=["S", "M", "L", "XL", "XXL"].index(sz) if sz in ["S", "M", "L", "XL", "XXL"] else 2)
-                    
                     st.markdown("---")
                     c_a, c_b = st.columns(2)
                     new_ent = c_a.toggle("✅ Entry", is_ent)
                     new_kit = c_b.toggle("👕 Kit", is_kit)
-                    
                     buses = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
                     new_bus = st.selectbox("🚌 Bus", buses, index=buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0)
                     
@@ -191,13 +210,11 @@ if menu == "🔍 Search & Entry":
                             can_assign = True
                             if new_bus != "Unassigned" and new_bus != row['Bus_Number']:
                                 if len(df[df['Bus_Number'] == new_bus]) >= BUS_CAPACITY: st.error("Bus Full!"); can_assign = False
-                            
                             if can_assign:
                                 if new_kit:
                                     if is_kit and sz != new_size: st.session_state.stock[sz]+=1; st.session_state.stock[new_size]-=1
                                     elif not is_kit: st.session_state.stock[new_size]-=1
                                 elif not new_kit and is_kit: st.session_state.stock[sz]+=1
-                                
                                 st.session_state.df.at[idx, 'Name'] = new_name
                                 st.session_state.df.at[idx, 'Role'] = new_role
                                 st.session_state.df.at[idx, 'Spot Phone'] = new_phone
@@ -207,7 +224,6 @@ if menu == "🔍 Search & Entry":
                                 st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
                                 st.session_state.df.at[idx, 'Bus_Number'] = new_bus
                                 if new_ent and row['Entry_Time'] == 'N/A': st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
-                                
                                 conn.update(worksheet="Data", data=st.session_state.df)
                                 s_d = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
                                 conn.update(worksheet="Stock", data=pd.DataFrame(s_d))
@@ -219,9 +235,7 @@ elif menu == "➕ Add Staff/Teacher":
     st.title("➕ Add Manual Entry")
     with st.form("add"):
         c1, c2 = st.columns(2); name = c1.text_input("Name"); ph = c2.text_input("Phone")
-        c3, c4 = st.columns(2)
-        role = c3.selectbox("Role", ["Teacher", "College Staff", "Guest", "Volunteer", "Principal", "College Head"])
-        cls = c4.text_input("Class (Optional)", "N/A")
+        c3, c4 = st.columns(2); role = c3.selectbox("Role", ["Teacher", "College Staff", "Guest", "Volunteer", "Principal", "College Head"]); cls = c4.text_input("Class", "N/A")
         if st.form_submit_button("Add"):
             if name and ph:
                 new = {'Name':name, 'Role':role, 'Spot Phone':ph, 'Ticket_Number':f"MAN-{int(time.time())}", 'Class':cls, 'Roll':'N/A', 'Entry_Status':'N/A', 'Entry_Time':'N/A', 'Bus_Number':'Unassigned', 'T_Shirt_Size':'L', 'T_Shirt_Collected':'No', 'Notes':'Manual'}
@@ -233,7 +247,6 @@ elif menu == "📜 View Lists (Student/Staff)":
     st.title("📜 View Lists")
     filter_type = st.radio("Filter By:", ["Class", "Role"], horizontal=True)
     view_df = pd.DataFrame()
-    
     if filter_type == "Class":
         cls_list = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
         sel = st.selectbox("Select Class", ["All"] + cls_list)
@@ -242,11 +255,8 @@ elif menu == "📜 View Lists (Student/Staff)":
         role_list = sorted([r for r in st.session_state.df['Role'].unique() if r not in ['', 'N/A']])
         sel_role = st.selectbox("Select Role", ["All"] + role_list)
         view_df = st.session_state.df if sel_role == "All" else st.session_state.df[st.session_state.df['Role'] == sel_role]
-
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total Found", len(view_df))
-    c2.metric("Checked In", len(view_df[view_df['Entry_Status']=='Done']))
-    c3.metric("Pending", len(view_df)-len(view_df[view_df['Entry_Status']=='Done']))
+    c1.metric("Total", len(view_df)); c2.metric("Checked In", len(view_df[view_df['Entry_Status']=='Done'])); c3.metric("Pending", len(view_df)-len(view_df[view_df['Entry_Status']=='Done']))
     st.dataframe(view_df[['Name', 'Role', 'Class', 'Spot Phone', 'Entry_Status']], use_container_width=True)
 
 # --- TAB: ABSENT LIST ---
@@ -254,12 +264,10 @@ elif menu == "🚫 Absent List":
     st.title("🚫 Absentee Manager")
     abs_df = st.session_state.df[st.session_state.df['Entry_Status'] != 'Done']
     c1, c2 = st.columns(2); c1.metric("Total Absent", len(abs_df)); c2.metric("Registered", len(st.session_state.df))
-    
     cls_list = sorted([c for c in abs_df['Class'].unique() if c not in ['', 'N/A']])
     sel = st.selectbox("Filter Class", ["All"] + cls_list)
     v_abs = abs_df if sel == "All" else abs_df[abs_df['Class'] == sel]
     st.dataframe(v_abs[['Name', 'Class', 'Role', 'Spot Phone']], use_container_width=True)
-    
     if st.button("🖨️ Print Absent List"):
         html = f"<html><body><h1>Absent List - {sel}</h1><table><tr><th>Name</th><th>Class</th><th>Phone</th></tr>"
         for _, r in v_abs.iterrows(): html += f"<tr><td>{r['Name']}</td><td>{r['Class']}</td><td>{r['Spot Phone']}</td></tr>"
@@ -275,10 +283,8 @@ elif menu == "🚌 Bus Manager":
         df_b = st.session_state.df[st.session_state.df['Bus_Number'] == b]
         cnt = len(df_b)
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
-    
     st.markdown("---")
     with st.expander("🗑️ Bulk Unassign Tools"):
-        # 🔥 FIXED BULK UNASSIGN DROPDOWN 🔥
         st.subheader("Option: Empty a Bus")
         target_bus = st.selectbox("Select Bus to Empty:", buses)
         if st.button(f"🗑️ Empty {target_bus}"): 
@@ -287,8 +293,7 @@ elif menu == "🚌 Bus Manager":
                  st.session_state.df.loc[mask, 'Bus_Number']='Unassigned'
                  conn.update(worksheet="Data", data=st.session_state.df)
                  st.success(f"Emptied {target_bus}!"); time.sleep(1); st.rerun()
-             else:
-                 st.warning("Bus is already empty.")
+             else: st.warning("Bus is already empty.")
 
     st.subheader("🖨️ Print Manifest")
     if st.button("📄 Generate PDF Ready"):
