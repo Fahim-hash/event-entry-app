@@ -122,6 +122,16 @@ st.markdown("""
 conn = st.connection("gsheets", type=GSheetsConnection)
 BUS_CAPACITY = 45
 
+# 🔥 SAFE UPDATE FUNCTION 🔥
+def safe_update(ws, data):
+    try:
+        conn.update(worksheet=ws, data=data)
+        return True
+    except Exception as e:
+        st.error(f"⚠️ Cloud Sync Error: {e}")
+        st.warning("Please check if the Service Account has 'Editor' permission in Google Sheet.")
+        return False
+
 def load_data():
     try:
         df = conn.read(worksheet="Data", ttl=0)
@@ -251,7 +261,7 @@ if menu == "🔍 Search & Entry":
                 kit_color = "#00ff88" if is_kit else "#ffcc00"
                 kit_status = "✅ COLLECTED" if is_kit else "📦 PENDING"
                 
-                # HTML CARD RENDER (Fixed Indentation)
+                # HTML CARD RENDER
                 html_code = f"""
 <div class="{card_class}">
     <div style="background:{status_color}; color:black; font-weight:bold; padding:5px; border-radius:5px; margin-bottom:10px;">
@@ -279,8 +289,8 @@ if menu == "🔍 Search & Entry":
                 if row['Bus_Number'] != "Unassigned":
                     if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
-                        conn.update(worksheet="Data", data=st.session_state.df)
-                        st.success(f"Removed from {row['Bus_Number']}!"); time.sleep(0.5); st.rerun()
+                        if safe_update("Data", st.session_state.df):
+                            st.success(f"Removed from {row['Bus_Number']}!"); time.sleep(0.5); st.rerun()
 
             with col2:
                 with st.container(border=True):
@@ -320,10 +330,12 @@ if menu == "🔍 Search & Entry":
                                 st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
                                 st.session_state.df.at[idx, 'Bus_Number'] = new_bus
                                 if new_ent and row['Entry_Time'] == 'N/A': st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
-                                conn.update(worksheet="Data", data=st.session_state.df)
-                                s_d = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
-                                conn.update(worksheet="Stock", data=pd.DataFrame(s_d))
-                                st.success("Updated!"); time.sleep(0.5); st.rerun()
+                                
+                                # 🔥 SAFE UPDATE 🔥
+                                if safe_update("Data", st.session_state.df):
+                                    s_d = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
+                                    safe_update("Stock", pd.DataFrame(s_d))
+                                    st.success("Updated!"); time.sleep(0.5); st.rerun()
         else: st.warning("Not Found")
 
 # --- TAB: ADD STAFF ---
@@ -336,7 +348,8 @@ elif menu == "➕ Add Staff/Teacher":
             if name and ph:
                 new = {'Name':name, 'Role':role, 'Spot Phone':ph, 'Ticket_Number':f"MAN-{int(time.time())}", 'Class':cls, 'Roll':'N/A', 'Entry_Status':'N/A', 'Entry_Time':'N/A', 'Bus_Number':'Unassigned', 'T_Shirt_Size':'L', 'T_Shirt_Collected':'No', 'Notes':'Manual'}
                 st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new])], ignore_index=True)
-                conn.update(worksheet="Data", data=st.session_state.df); st.success("Added!"); time.sleep(1); st.rerun()
+                if safe_update("Data", st.session_state.df):
+                    st.success("Added!"); time.sleep(1); st.rerun()
 
 # --- TAB: VIEW LISTS ---
 elif menu == "📜 View Lists":
@@ -388,8 +401,8 @@ elif menu == "🚌 Bus Manager":
              mask = st.session_state.df['Bus_Number'] == target_bus
              if mask.sum() > 0:
                  st.session_state.df.loc[mask, 'Bus_Number']='Unassigned'
-                 conn.update(worksheet="Data", data=st.session_state.df)
-                 st.success(f"Emptied {target_bus}!"); time.sleep(1); st.rerun()
+                 if safe_update("Data", st.session_state.df):
+                     st.success(f"Emptied {target_bus}!"); time.sleep(1); st.rerun()
              else: st.warning("Bus is already empty.")
 
     st.subheader("🖨️ Print Manifest")
@@ -414,7 +427,8 @@ elif menu == "🚌 Bus Manager":
                 if len(st.session_state.df[st.session_state.df['Bus_Number']==buses[b_i]]) < BUS_CAPACITY:
                     st.session_state.df.at[i, 'Bus_Number'] = buses[b_i]; cnt+=1; break
                 else: b_i+=1
-        conn.update(worksheet="Data", data=st.session_state.df); st.success(f"Assigned {cnt}!"); st.rerun()
+        if safe_update("Data", st.session_state.df):
+            st.success(f"Assigned {cnt}!"); st.rerun()
 
 # --- TAB: DASHBOARD ---
 elif menu == "📊 Dashboard":
