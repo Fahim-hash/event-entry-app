@@ -83,7 +83,7 @@ if not st.session_state.logged_in:
             else: st.error("Wrong Password!")
     st.stop()
 
-# ==================== 4. LIVE TIMER (HIGH VISIBILITY) ====================
+# ==================== 4. LIVE DIGITAL TIMER ====================
 st.sidebar.title("⚡ Menu")
 
 # Target: Feb 3, 2026 07:00:00 GMT+6
@@ -94,9 +94,9 @@ timer_html = f"""
 <html>
 <head>
 <style>
-    body {{ margin: 0; font-family: 'Segoe UI', sans-serif; background-color: transparent; }}
+    body {{ margin: 0; font-family: 'Courier New', monospace; background-color: transparent; }}
     .timer-container {{
-        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        background: linear-gradient(135deg, #000428 0%, #004e92 100%);
         color: white;
         padding: 15px;
         border-radius: 12px;
@@ -104,16 +104,16 @@ timer_html = f"""
         border: 1px solid rgba(255,255,255,0.2);
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }}
-    .label {{ font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; opacity: 0.9; }}
-    .time {{ font-size: 20px; font-weight: 800; font-family: monospace; letter-spacing: 0px; }}
-    .date {{ font-size: 11px; margin-top: 5px; opacity: 0.8; }}
+    .label {{ font-family: sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; color: #00ff88; }}
+    .time {{ font-size: 24px; font-weight: bold; letter-spacing: 1px; color: #fff; }}
+    .sub-labels {{ font-size: 9px; opacity: 0.6; margin-top: 2px; font-family: sans-serif; }}
 </style>
 </head>
 <body>
     <div class="timer-container">
-        <div class="label">🚀 EVENT STARTS IN</div>
-        <div id="countdown" class="time">Loading...</div>
-        <div class="date">3rd Feb 2026, 7:00 AM</div>
+        <div class="label">EVENT COUNTDOWN</div>
+        <div id="countdown" class="time">-- : -- : -- : --</div>
+        <div class="sub-labels">DAYS &nbsp; HOURS &nbsp; MIN &nbsp; SEC</div>
     </div>
 
 <script>
@@ -134,12 +134,13 @@ function updateTimer() {{
         const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const s = Math.floor((diff % (1000 * 60)) / 1000);
 
+        const dd = d < 10 ? "0" + d : d;
         const hh = h < 10 ? "0" + h : h;
         const mm = m < 10 ? "0" + m : m;
         const ss = s < 10 ? "0" + s : s;
 
-        // Display Format: DD : HH : MM : SS
-        document.getElementById("countdown").innerHTML = d + "d : " + hh + "h : " + mm + "m : " + ss + "s";
+        // Digital Clock Format: DD : HH : MM : SS
+        document.getElementById("countdown").innerHTML = dd + " : " + hh + " : " + mm + " : " + ss;
     }}, 1000);
 }}
 updateTimer();
@@ -192,6 +193,7 @@ if menu == "🔍 Search & Entry":
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # FIXED UNASSIGN BUTTON
                 if row['Bus_Number'] != "Unassigned":
                     if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
@@ -296,6 +298,8 @@ elif menu == "🚌 Bus Manager":
         cnt = len(df_b)
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     st.markdown("---")
+    
+    # FIXED BULK UNASSIGN
     with st.expander("🗑️ Bulk Unassign Tools"):
         st.subheader("Option: Empty a Bus")
         target_bus = st.selectbox("Select Bus to Empty:", buses)
@@ -331,22 +335,31 @@ elif menu == "🚌 Bus Manager":
                 else: b_i+=1
         conn.update(worksheet="Data", data=st.session_state.df); st.success(f"Assigned {cnt}!"); st.rerun()
 
-# --- TAB: DASHBOARD (FIXED) ---
+# --- TAB: DASHBOARD (FIXED GROUPING) ---
 elif menu == "📊 Dashboard":
     st.title("📊 Event Stats")
     
     if not st.session_state.df.empty:
         df = st.session_state.df
-        c1, c2, c3 = st.columns(3)
+        
+        # 🔥 Group 1: Students & Team
+        grp1 = ['Student', 'Organizer', 'Volunteer']
+        cnt1 = len(df[df['Role'].isin(grp1)])
+
+        # 🔥 Group 2: Teachers & Staff
+        grp2 = ['Teacher', 'College Staff', 'Principal', 'College Head']
+        cnt2 = len(df[df['Role'].isin(grp2)])
+        
+        c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total Registered", len(df))
-        c2.metric("Checked In", len(df[df['Entry_Status']=='Done']))
-        c3.metric("Kits Distributed", len(df[df['T_Shirt_Collected']=='Yes']))
+        c2.metric("Students + Team", cnt1, help="Student, Org, Vol")
+        c3.metric("Faculty & Staff", cnt2, help="Teacher, Staff, Principal")
+        c4.metric("Checked In", len(df[df['Entry_Status']=='Done']))
         
         st.markdown("### T-Shirt Distribution")
         st.bar_chart(df['T_Shirt_Size'].value_counts())
     else:
-        st.warning("⚠️ No data available. Please check your Google Sheet connection.")
-        st.info("💡 Try adding a manual entry to see stats.")
+        st.warning("⚠️ No data available.")
 
 # --- TAB: ADMIN DATA ---
 elif menu == "📝 Admin Data":
