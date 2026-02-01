@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
-from datetime import datetime, timedelta
+from datetime import datetime
 import time
-import pytz  # Timezone handling
+import pytz
 
 # ==================== 1. CONFIG & STYLE ====================
 st.set_page_config(page_title="Event OS Pro", page_icon="⚡", layout="wide")
@@ -11,14 +11,10 @@ st.set_page_config(page_title="Event OS Pro", page_icon="⚡", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #050505; color: #e0e0e0; }
-    
-    /* Stats Box */
     div[data-testid="stMetric"] {
         background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 10px; padding: 10px;
     }
-    
-    /* ID Card Design */
     .id-card {
         background: linear-gradient(135deg, #121212 0%, #1e1e1e 100%);
         border: 2px solid #333; border-radius: 15px; padding: 20px;
@@ -26,8 +22,6 @@ st.markdown("""
     }
     .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; color: white; }
     .role-badge { background: #FFD700; color: black; padding: 2px 10px; border-radius: 10px; font-weight: bold; font-size: 12px; }
-    
-    /* Input Fields Style */
     input[type="text"] {
         border: 1px solid #444 !important; background-color: #1a1a1a !important; color: white !important;
     }
@@ -36,7 +30,7 @@ st.markdown("""
 
 # ==================== 2. DATA ENGINE ====================
 conn = st.connection("gsheets", type=GSheetsConnection)
-BUS_CAPACITY = 45  # Hard Limit
+BUS_CAPACITY = 45
 
 def load_data():
     try:
@@ -73,36 +67,49 @@ if not st.session_state.logged_in:
             else: st.error("Wrong Password!")
     st.stop()
 
-# ==================== 4. MAIN APP ====================
+# ==================== 4. LIVE JS TIMER ====================
 st.sidebar.title("⚡ Menu")
 
-# 🔥 COUNTDOWN WITH SECONDS (Feb 3, 7:00 AM) 🔥
-tz = pytz.timezone('Asia/Dhaka') # GMT+6
-now = datetime.now(tz)
-target_date = datetime(2026, 2, 3, 7, 0, 0, tzinfo=tz) # Target Time
-remaining = target_date - now
+# JavaScript Timer (No Refresh Needed)
+# Target: Feb 3, 2026 07:00:00 GMT+6
+target_iso = "2026-02-03T07:00:00+06:00"
 
-if remaining.total_seconds() > 0:
-    days = remaining.days
-    hours, remainder = divmod(remaining.seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    
-    # Updated Visual with Seconds
-    st.sidebar.markdown(f"""
-    <div style="background: linear-gradient(45deg, #ff00cc, #333399); padding: 15px; border-radius: 12px; text-align: center; color: white; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
-        <h4 style="margin:0; font-size: 13px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px;">🚀 Event Starts In</h4>
-        <div style="font-size: 22px; font-weight: 900; margin: 8px 0; text-shadow: 0 0 10px rgba(255,255,255,0.5); font-family: monospace;">
-            {days}d : {hours:02d}h : {minutes:02d}m : {seconds:02d}s
-        </div>
-        <small style="opacity: 0.7;">3rd Feb 2026, 7:00 AM</small>
+st.sidebar.markdown(f"""
+<div style="background: linear-gradient(45deg, #ff00cc, #333399); padding: 15px; border-radius: 12px; text-align: center; color: white; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
+    <h4 style="margin:0; font-size: 13px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px;">🚀 Event Starts In</h4>
+    <div id="countdown" style="font-size: 22px; font-weight: 900; margin: 8px 0; text-shadow: 0 0 10px rgba(255,255,255,0.5); font-family: monospace;">
+        Loading...
     </div>
-    """, unsafe_allow_html=True)
-else:
-    st.sidebar.markdown("""
-    <div style="background: linear-gradient(45deg, #00ff88, #0099cc); padding: 15px; border-radius: 12px; text-align: center; color: black; margin-bottom: 20px; font-weight: bold;">
-        🎉 EVENT HAS STARTED! 🚀
-    </div>
-    """, unsafe_allow_html=True)
+    <small style="opacity: 0.7;">3rd Feb 2026, 7:00 AM</small>
+</div>
+
+<script>
+function updateTimer() {{
+    const target = new Date("{target_iso}").getTime();
+    const now = new Date().getTime();
+    const diff = target - now;
+
+    if (diff < 0) {{
+        document.getElementById("countdown").innerHTML = "EVENT STARTED!";
+        return;
+    }}
+
+    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+    // Format with leading zeros
+    const hh = h < 10 ? "0" + h : h;
+    const mm = m < 10 ? "0" + m : m;
+    const ss = s < 10 ? "0" + s : s;
+
+    document.getElementById("countdown").innerHTML = d + "d : " + hh + "h : " + mm + "m : " + ss + "s";
+}}
+setInterval(updateTimer, 1000);
+updateTimer();
+</script>
+""", unsafe_allow_html=True)
 
 menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 View Lists (Student/Staff)", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
 
@@ -146,10 +153,15 @@ if menu == "🔍 Search & Entry":
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # 🔥 FIXED INDIVIDUAL UNASSIGN 🔥
                 if row['Bus_Number'] != "Unassigned":
-                    if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary"):
+                    # Added unique key to prevent conflict
+                    if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
-                        conn.update(worksheet="Data", data=st.session_state.df); st.rerun()
+                        conn.update(worksheet="Data", data=st.session_state.df)
+                        st.success(f"Removed from {row['Bus_Number']}!")
+                        time.sleep(0.5); st.rerun()
 
             with col2:
                 with st.container(border=True):
@@ -207,11 +219,9 @@ elif menu == "➕ Add Staff/Teacher":
     st.title("➕ Add Manual Entry")
     with st.form("add"):
         c1, c2 = st.columns(2); name = c1.text_input("Name"); ph = c2.text_input("Phone")
-        
         c3, c4 = st.columns(2)
         role = c3.selectbox("Role", ["Teacher", "College Staff", "Guest", "Volunteer", "Principal", "College Head"])
         cls = c4.text_input("Class (Optional)", "N/A")
-        
         if st.form_submit_button("Add"):
             if name and ph:
                 new = {'Name':name, 'Role':role, 'Spot Phone':ph, 'Ticket_Number':f"MAN-{int(time.time())}", 'Class':cls, 'Roll':'N/A', 'Entry_Status':'N/A', 'Entry_Time':'N/A', 'Bus_Number':'Unassigned', 'T_Shirt_Size':'L', 'T_Shirt_Collected':'No', 'Notes':'Manual'}
@@ -237,7 +247,6 @@ elif menu == "📜 View Lists (Student/Staff)":
     c1.metric("Total Found", len(view_df))
     c2.metric("Checked In", len(view_df[view_df['Entry_Status']=='Done']))
     c3.metric("Pending", len(view_df)-len(view_df[view_df['Entry_Status']=='Done']))
-    
     st.dataframe(view_df[['Name', 'Role', 'Class', 'Spot Phone', 'Entry_Status']], use_container_width=True)
 
 # --- TAB: ABSENT LIST ---
@@ -249,8 +258,8 @@ elif menu == "🚫 Absent List":
     cls_list = sorted([c for c in abs_df['Class'].unique() if c not in ['', 'N/A']])
     sel = st.selectbox("Filter Class", ["All"] + cls_list)
     v_abs = abs_df if sel == "All" else abs_df[abs_df['Class'] == sel]
-    
     st.dataframe(v_abs[['Name', 'Class', 'Role', 'Spot Phone']], use_container_width=True)
+    
     if st.button("🖨️ Print Absent List"):
         html = f"<html><body><h1>Absent List - {sel}</h1><table><tr><th>Name</th><th>Class</th><th>Phone</th></tr>"
         for _, r in v_abs.iterrows(): html += f"<tr><td>{r['Name']}</td><td>{r['Class']}</td><td>{r['Spot Phone']}</td></tr>"
@@ -268,10 +277,18 @@ elif menu == "🚌 Bus Manager":
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     
     st.markdown("---")
-    with st.expander("🗑️ Bulk Unassign"):
-        if st.button("Empty Bus 1"): 
-             st.session_state.df.loc[st.session_state.df['Bus_Number']=='Bus 1', 'Bus_Number']='Unassigned'
-             conn.update(worksheet="Data", data=st.session_state.df); st.rerun()
+    with st.expander("🗑️ Bulk Unassign Tools"):
+        # 🔥 FIXED BULK UNASSIGN DROPDOWN 🔥
+        st.subheader("Option: Empty a Bus")
+        target_bus = st.selectbox("Select Bus to Empty:", buses)
+        if st.button(f"🗑️ Empty {target_bus}"): 
+             mask = st.session_state.df['Bus_Number'] == target_bus
+             if mask.sum() > 0:
+                 st.session_state.df.loc[mask, 'Bus_Number']='Unassigned'
+                 conn.update(worksheet="Data", data=st.session_state.df)
+                 st.success(f"Emptied {target_bus}!"); time.sleep(1); st.rerun()
+             else:
+                 st.warning("Bus is already empty.")
 
     st.subheader("🖨️ Print Manifest")
     if st.button("📄 Generate PDF Ready"):
