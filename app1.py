@@ -4,27 +4,41 @@ from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import time
 import pytz
-import streamlit.components.v1 as components  # 🔥 IMPORT COMPONENTS 🔥
+import streamlit.components.v1 as components
 
 # ==================== 1. CONFIG & STYLE ====================
 st.set_page_config(page_title="Event OS Pro", page_icon="⚡", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #050505; color: #e0e0e0; }
+    .stApp { background-color: #0e1117; color: #e0e0e0; }
+    
+    /* Metrics Style */
     div[data-testid="stMetric"] {
-        background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 10px; padding: 10px;
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 15px;
+        border-radius: 10px;
     }
+    
+    /* ID Card Style */
     .id-card {
-        background: linear-gradient(135deg, #121212 0%, #1e1e1e 100%);
-        border: 2px solid #333; border-radius: 15px; padding: 20px;
-        text-align: center; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        background: linear-gradient(145deg, #1e1e1e, #2a2a2a);
+        border: 1px solid #444;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        margin-bottom: 20px;
     }
-    .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; color: white; }
-    .role-badge { background: #FFD700; color: black; padding: 2px 10px; border-radius: 10px; font-weight: bold; font-size: 12px; }
-    input[type="text"] {
-        border: 1px solid #444 !important; background-color: #1a1a1a !important; color: white !important;
+    .id-name { font-size: 24px; font-weight: bold; color: #fff; margin: 10px 0; }
+    .role-badge { background-color: #FFD700; color: #000; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 12px; }
+    
+    /* Input Fields */
+    .stTextInput input {
+        background-color: #262730;
+        color: white;
+        border: 1px solid #444;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -42,7 +56,8 @@ def load_data():
         for col in df.columns:
             df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).replace(['nan', 'None', ''], 'N/A')
         return df
-    except: return pd.DataFrame()
+    except Exception as e:
+        return pd.DataFrame()
 
 def load_stock():
     try:
@@ -68,35 +83,36 @@ if not st.session_state.logged_in:
             else: st.error("Wrong Password!")
     st.stop()
 
-# ==================== 4. LIVE TIMER (FIXED) ====================
+# ==================== 4. LIVE TIMER (HIGH VISIBILITY) ====================
 st.sidebar.title("⚡ Menu")
 
-# Target Time: Feb 3, 2026 07:00:00 GMT+6
+# Target: Feb 3, 2026 07:00:00 GMT+6
 target_iso = "2026-02-03T07:00:00+06:00"
 
-# 🔥 NEW COMPONENT METHOD (100% Works) 🔥
 timer_html = f"""
 <!DOCTYPE html>
 <html>
 <head>
 <style>
-    body {{ margin: 0; font-family: sans-serif; background-color: #0e1117; color: white; }}
-    .timer-box {{
-        background: linear-gradient(45deg, #ff00cc, #333399);
+    body {{ margin: 0; font-family: 'Segoe UI', sans-serif; background-color: transparent; }}
+    .timer-container {{
+        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        color: white;
         padding: 15px;
         border-radius: 12px;
         text-align: center;
         border: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }}
-    .label {{ font-size: 13px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }}
-    .time {{ font-size: 22px; font-weight: 900; font-family: monospace; text-shadow: 0 0 10px rgba(255,255,255,0.5); }}
-    .date {{ font-size: 11px; opacity: 0.7; margin-top: 5px; }}
+    .label {{ font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; opacity: 0.9; }}
+    .time {{ font-size: 20px; font-weight: 800; font-family: monospace; letter-spacing: 0px; }}
+    .date {{ font-size: 11px; margin-top: 5px; opacity: 0.8; }}
 </style>
 </head>
 <body>
-    <div class="timer-box">
-        <div class="label">🚀 Event Starts In</div>
-        <div id="countdown" class="time">-- : -- : -- : --</div>
+    <div class="timer-container">
+        <div class="label">🚀 EVENT STARTS IN</div>
+        <div id="countdown" class="time">Loading...</div>
         <div class="date">3rd Feb 2026, 7:00 AM</div>
     </div>
 
@@ -104,7 +120,6 @@ timer_html = f"""
 function updateTimer() {{
     const target = new Date("{target_iso}").getTime();
     
-    // Timer Loop
     setInterval(function() {{
         const now = new Date().getTime();
         const diff = target - now;
@@ -123,6 +138,7 @@ function updateTimer() {{
         const mm = m < 10 ? "0" + m : m;
         const ss = s < 10 ? "0" + s : s;
 
+        // Display Format: DD : HH : MM : SS
         document.getElementById("countdown").innerHTML = d + "d : " + hh + "h : " + mm + "m : " + ss + "s";
     }}, 1000);
 }}
@@ -132,16 +148,15 @@ updateTimer();
 </html>
 """
 
-# Render the timer in Sidebar using Components
 with st.sidebar:
-    components.html(timer_html, height=120)
+    components.html(timer_html, height=130)
 
-menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 View Lists (Student/Staff)", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
+menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 View Lists", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
 
 if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear(); st.session_state.df = load_data(); st.session_state.stock = load_stock(); st.rerun()
 
-# --- TAB 1: SEARCH & ENTRY ---
+# --- TAB: SEARCH & ENTRY ---
 if menu == "🔍 Search & Entry":
     st.title("🔍 Search & Entry")
     q = st.text_input("🔎 Search by Ticket / Name / Phone:").strip()
@@ -161,8 +176,6 @@ if menu == "🔍 Search & Entry":
             sz = row['T_Shirt_Size']
             rem = st.session_state.stock.get(sz, 0)
             
-            if not is_kit and rem <= 5: st.warning(f"⚠️ LOW STOCK: {sz} ({rem} left)")
-
             col1, col2 = st.columns([1, 1.5])
             with col1:
                 border_c = "#00ff88" if is_ent else "#ff4b4b"
@@ -179,7 +192,6 @@ if menu == "🔍 Search & Entry":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # UNASSIGN FIX
                 if row['Bus_Number'] != "Unassigned":
                     if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
@@ -188,7 +200,7 @@ if menu == "🔍 Search & Entry":
 
             with col2:
                 with st.container(border=True):
-                    st.subheader("✏️ Edit & Actions")
+                    st.subheader("✏️ Update Details")
                     c_n, c_r = st.columns([1.5, 1])
                     new_name = c_n.text_input("Name", row['Name'])
                     role_opts = ["Student", "Volunteer", "Teacher", "College Staff", "Organizer", "Principal", "College Head"]
@@ -205,7 +217,7 @@ if menu == "🔍 Search & Entry":
                     new_bus = st.selectbox("🚌 Bus", buses, index=buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0)
                     
                     if st.button("💾 Save Changes", type="primary"):
-                        if not new_phone or new_phone=='N/A' or not new_ticket or new_ticket=='N/A': st.error("Phone & Ticket Required!")
+                        if not new_phone or new_phone=='N/A': st.error("Phone Required!")
                         else:
                             can_assign = True
                             if new_bus != "Unassigned" and new_bus != row['Bus_Number']:
@@ -243,7 +255,7 @@ elif menu == "➕ Add Staff/Teacher":
                 conn.update(worksheet="Data", data=st.session_state.df); st.success("Added!"); time.sleep(1); st.rerun()
 
 # --- TAB: VIEW LISTS ---
-elif menu == "📜 View Lists (Student/Staff)":
+elif menu == "📜 View Lists":
     st.title("📜 View Lists")
     filter_type = st.radio("Filter By:", ["Class", "Role"], horizontal=True)
     view_df = pd.DataFrame()
@@ -318,6 +330,23 @@ elif menu == "🚌 Bus Manager":
                     st.session_state.df.at[i, 'Bus_Number'] = buses[b_i]; cnt+=1; break
                 else: b_i+=1
         conn.update(worksheet="Data", data=st.session_state.df); st.success(f"Assigned {cnt}!"); st.rerun()
+
+# --- TAB: DASHBOARD (FIXED) ---
+elif menu == "📊 Dashboard":
+    st.title("📊 Event Stats")
+    
+    if not st.session_state.df.empty:
+        df = st.session_state.df
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Total Registered", len(df))
+        c2.metric("Checked In", len(df[df['Entry_Status']=='Done']))
+        c3.metric("Kits Distributed", len(df[df['T_Shirt_Collected']=='Yes']))
+        
+        st.markdown("### T-Shirt Distribution")
+        st.bar_chart(df['T_Shirt_Size'].value_counts())
+    else:
+        st.warning("⚠️ No data available. Please check your Google Sheet connection.")
+        st.info("💡 Try adding a manual entry to see stats.")
 
 # --- TAB: ADMIN DATA ---
 elif menu == "📝 Admin Data":
