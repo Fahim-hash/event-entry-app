@@ -10,10 +10,7 @@ st.set_page_config(page_title="Event Manager Pro", page_icon="🎓", layout="wid
 # Custom CSS for Better UI
 st.markdown("""
     <style>
-    /* Main Background */
     .stApp {background-color: #0e1117;}
-    
-    /* Metrics Card Styling */
     div[data-testid="stMetric"] {
         background-color: #262730;
         padding: 15px;
@@ -21,8 +18,6 @@ st.markdown("""
         border: 1px solid #41444d;
         text-align: center;
     }
-    
-    /* ID Card Styling */
     .id-card {
         background: linear-gradient(135deg, #1f4037, #99f2c8);
         padding: 20px;
@@ -45,11 +40,7 @@ st.markdown("""
     }
     .id-name { font-size: 24px; font-weight: bold; margin: 10px 0; }
     .id-details { font-size: 16px; margin: 5px 0; }
-    
-    /* Sidebar Styling */
-    section[data-testid="stSidebar"] {
-        background-color: #1a1c24;
-    }
+    section[data-testid="stSidebar"] { background-color: #1a1c24; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -78,7 +69,6 @@ if not st.session_state.logged_in:
     st.title("🔐 Event Manager Pro")
     c1, c2 = st.columns([1, 2])
     with c1:
-        # Just a placeholder image or you can use your logo
         st.markdown("### 🔐 Access")
     with c2:
         st.text_input("Username", key="username")
@@ -140,6 +130,30 @@ if st.session_state.user_role == 'admin':
 
 menu = st.sidebar.radio("Navigate:", menu_opts)
 st.sidebar.markdown("---")
+
+# ADD NEW PERSON (ADMIN ONLY)
+if st.session_state.user_role == 'admin':
+    with st.sidebar.expander("➕ Add New Person"):
+        with st.form("add_person"):
+            n_name = st.text_input("Name")
+            n_role = st.selectbox("Role", ["Student", "Volunteer", "Organizer", "Teacher", "Guest"])
+            n_phone = st.text_input("Spot Phone (Mandatory)")
+            n_ticket = st.text_input("Ticket No (Mandatory)")
+            
+            if st.form_submit_button("Add Person"):
+                if not n_phone.strip() or not n_ticket.strip():
+                    st.error("❌ Phone and Ticket Number are Required!")
+                else:
+                    new_data = {
+                        'Name': n_name, 'Role': n_role, 'Spot Phone': str(n_phone), 'Ticket_Number': str(n_ticket),
+                        'Class': 'New Entry', 'Roll': 'N/A', 'Entry_Status': '', 'Entry_Time': '', 'Bus_Number': 'Unassigned',
+                        'T_Shirt_Size': 'L', 'T_Shirt_Collected': 'No', 'Notes': 'Added Online'
+                    }
+                    st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new_data])], ignore_index=True)
+                    save_data()
+                    st.success("Added!")
+                    st.rerun()
+
 if st.sidebar.button("🔴 Logout"):
     st.session_state.logged_in = False
     st.rerun()
@@ -153,7 +167,6 @@ if menu == "🏠 Dashboard":
     entered = len(df[df['Entry_Status'] == 'Done'])
     pending = total - entered
     
-    # Modern Metrics
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("👥 Total Attendees", total)
     col2.metric("✅ Checked In", entered, delta=f"{int((entered/total)*100) if total else 0}%")
@@ -162,7 +175,6 @@ if menu == "🏠 Dashboard":
     
     st.progress(entered/total if total > 0 else 0)
     
-    # Quick View
     st.subheader("📢 Recent Entries")
     st.dataframe(df[df['Entry_Status']=='Done'].sort_values('Entry_Time', ascending=False).head(5)[['Name', 'Entry_Time', 'Bus_Number']], use_container_width=True)
 
@@ -188,13 +200,14 @@ elif menu == "🔍 Search & ID":
             
             row = st.session_state.df.loc[idx]
             
-            # --- DIGITAL ID CARD DISPLAY ---
+            # DIGITAL ID CARD
             st.markdown(f"""
             <div class="id-card">
                 <div class="id-role">{str(row['Role']).upper()}</div>
                 <div class="id-name">{row['Name']}</div>
                 <div class="id-details">🎟 Ticket: <b>{row['Ticket_Number']}</b></div>
                 <div class="id-details">📞 {row['Spot Phone']}</div>
+                <div class="id-details">🆔 Roll: {row['Roll']}</div>
                 <div class="id-details">🚌 Bus: {row['Bus_Number']}</div>
                 <div style="margin-top:15px; font-size:20px;">
                     {'✅ CHECKED IN' if row['Entry_Status']=='Done' else '⏳ NOT ENTERED'}
@@ -202,23 +215,18 @@ elif menu == "🔍 Search & ID":
             </div>
             """, unsafe_allow_html=True)
             
-            # --- ACTIONS ---
+            # CHECKIN ACTIONS
             with st.container(border=True):
                 st.subheader("⚡ Quick Actions")
                 c1, c2, c3 = st.columns(3)
-                
-                # Checkbox States (Fixed Indentation Here)
                 is_entered = c1.checkbox("✅ Mark Entry", value=(row['Entry_Status']=='Done'))
                 is_given = c2.checkbox("👕 T-Shirt Given", value=(row['T_Shirt_Collected']=='Yes'))
                 
-                # Update Button
                 if st.button("💾 Update Status", type="primary", use_container_width=True):
-                    # Logic
                     st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if is_entered else ''
                     if is_entered and not row['Entry_Time']:
                         st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
                     
-                    # Stock
                     sz = row['T_Shirt_Size']
                     if is_given and row['T_Shirt_Collected'] == 'No':
                         st.session_state.stock[sz] -= 1
@@ -233,46 +241,58 @@ elif menu == "🔍 Search & ID":
                     time.sleep(1)
                     st.rerun()
 
-            # --- EDIT BUTTON (ADMIN ONLY) ---
+            # --- FULL EDIT FORM (ADMIN ONLY) ---
             if st.session_state.user_role == 'admin':
-                with st.expander("✏️ Edit Details (Admin Only)"):
-                    with st.form("edit_full"):
-                        en = st.text_input("Name", row['Name'])
-                        ep = st.text_input("Phone", row['Spot Phone'])
+                with st.expander("✏️ Edit All Details (Admin Only)", expanded=False):
+                    with st.form("edit_full_details"):
+                        c1, c2 = st.columns(2)
+                        en = c1.text_input("Name", row['Name'])
+                        er = c2.text_input("Roll", row['Roll'])
                         
+                        c3, c4 = st.columns(2)
+                        et = c3.text_input("Ticket Number (Mandatory)", row['Ticket_Number'])
+                        ep = c4.text_input("Spot Phone (Mandatory)", row['Spot Phone'])
+                        
+                        c5, c6 = st.columns(2)
+                        # Role Change
+                        role_opts = ["Student", "Volunteer", "Organizer", "Teacher", "Guest"]
+                        curr_role = row['Role'] if row['Role'] in role_opts else "Student"
+                        erole = c5.selectbox("Change Role", role_opts, index=role_opts.index(curr_role))
+                        
+                        # Bus Change
                         bus_opts = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
                         curr_bus = row['Bus_Number'] if row['Bus_Number'] in bus_opts else "Unassigned"
-                        eb = st.selectbox("Bus", bus_opts, index=bus_opts.index(curr_bus))
+                        eb = c6.selectbox("Change Bus", bus_opts, index=bus_opts.index(curr_bus))
                         
-                        if st.form_submit_button("Save Changes"):
-                            st.session_state.df.at[idx, 'Name'] = en
-                            st.session_state.df.at[idx, 'Spot Phone'] = ep
-                            st.session_state.df.at[idx, 'Bus_Number'] = eb
-                            save_data()
-                            st.rerun()
+                        if st.form_submit_button("💾 Save All Changes"):
+                            # VALIDATION
+                            if not str(et).strip() or not str(ep).strip():
+                                st.error("❌ Ticket Number and Phone Number cannot be empty!")
+                            else:
+                                st.session_state.df.at[idx, 'Name'] = en
+                                st.session_state.df.at[idx, 'Roll'] = er
+                                st.session_state.df.at[idx, 'Ticket_Number'] = str(et)
+                                st.session_state.df.at[idx, 'Spot Phone'] = str(ep)
+                                st.session_state.df.at[idx, 'Role'] = erole
+                                st.session_state.df.at[idx, 'Bus_Number'] = eb
+                                save_data()
+                                st.success("Profile Updated!")
+                                st.rerun()
         else:
             st.warning("User not found!")
 
-# --- 3. ANALYTICS (GRAPHS) ---
+# --- 3. ANALYTICS ---
 elif menu == "📊 Analytics":
     st.title("📊 Data Analytics")
-    
     tab1, tab2 = st.tabs(["🚌 Bus Stats", "👕 T-Shirt Stats"])
-    
     with tab1:
-        st.subheader("Bus Occupancy")
-        bus_counts = st.session_state.df['Bus_Number'].value_counts()
-        st.bar_chart(bus_counts)
-    
+        st.bar_chart(st.session_state.df['Bus_Number'].value_counts())
     with tab2:
-        st.subheader("T-Shirt Demand (Size Wise)")
-        size_counts = st.session_state.df['T_Shirt_Size'].value_counts()
-        st.bar_chart(size_counts)
+        st.bar_chart(st.session_state.df['T_Shirt_Size'].value_counts())
 
 # --- 4. STOCK (ADMIN) ---
 elif menu == "👕 Stock Manager":
     st.title("📦 Inventory Control")
-    # Modern Cards
     cols = st.columns(5)
     for s in ["S", "M", "L", "XL", "XXL"]:
         q = st.session_state.stock.get(s, 0)
@@ -299,19 +319,10 @@ elif menu == "🚌 Bus Manager":
         save_data()
         st.success("Assigned!")
         st.rerun()
-    
     st.dataframe(st.session_state.df[['Name', 'Role', 'Bus_Number']], use_container_width=True)
 
 # --- 6. EXPORT (ADMIN) ---
 elif menu == "📥 Export Data":
     st.title("📥 Backup & Download")
-    st.write("Download the full database for offline use.")
-    
     csv = st.session_state.df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Download as CSV",
-        data=csv,
-        file_name=f"Event_Data_{datetime.now().strftime('%H-%M')}.csv",
-        mime='text/csv',
-    )
-    
+    st.download_button("📥 Download CSV", csv, "Event_Data.csv", "text/csv")
