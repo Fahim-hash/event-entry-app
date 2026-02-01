@@ -25,6 +25,7 @@ st.markdown("""
         text-align: center; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
     .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; color: white; }
+    .role-badge { background: #FFD700; color: black; padding: 2px 10px; border-radius: 10px; font-weight: bold; font-size: 12px; }
     .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 8px 0; font-size: 14px; color: #ccc; }
     
     /* Input Fields Style */
@@ -85,7 +86,7 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.stock = load_stock()
     st.rerun()
 
-# --- TAB 1: SEARCH & ENTRY (WITH STOCK ALERT) ---
+# --- TAB 1: SEARCH & ENTRY (WITH ROLE ADDER) ---
 if menu == "🔍 Search & Entry":
     st.title("🔍 Search, Edit & Entry")
     
@@ -106,38 +107,29 @@ if menu == "🔍 Search & Entry":
             sz = row['T_Shirt_Size']
             rem = st.session_state.stock.get(sz, 0)
             
-            # 🔥 STOCK WARNING LOGIC 🔥
+            # Stock Warning
             if not is_kit:
-                if rem == 0:
-                    st.error(f"❌ OUT OF STOCK! No {sz} size available.")
-                elif rem <= 5:
-                    st.toast(f"⚠️ Warning: Low Stock! Only {rem} {sz} T-Shirts left!", icon="⚠️")
-                    st.warning(f"⚠️ LOW STOCK ALERT: Only {rem} remaining!")
+                if rem == 0: st.error(f"❌ OUT OF STOCK! No {sz} size available.")
+                elif rem <= 5: st.warning(f"⚠️ LOW STOCK ALERT: Only {rem} remaining!")
 
             col1, col2 = st.columns([1, 1.5])
             
             # --- LEFT: ID CARD ---
             with col1:
                 border_c = "#00ff88" if is_ent else "#ff4b4b"
-                
-                # Stock Status Text
-                if is_kit: stock_msg = "✅ GIVEN"
-                elif rem == 0: stock_msg = "❌ STOCK OUT"
-                elif rem <= 5: stock_msg = f"⚠️ LOW ({rem})"
-                else: stock_msg = f"📦 Stock: {rem}"
-                
                 st.markdown(f"""
                 <div class="id-card" style="border: 2px solid {border_c};">
                     <div style="background:{border_c}; color:black; font-weight:bold; padding:5px; border-radius:5px;">
                         {'✅ CHECKED IN' if is_ent else '⏳ NOT ENTERED'}
                     </div>
+                    <br><span class="role-badge">{row['Role']}</span>
                     <div class="id-name">{row['Name']}</div>
                     <div class="info-row"><span>Ticket:</span> <b>{row['Ticket_Number']}</b></div>
                     <div class="info-row"><span>Phone:</span> <b>{row['Spot Phone']}</b></div>
                     <div class="info-row"><span>Bus:</span> <b>{row['Bus_Number']}</b></div>
                     <div style="margin-top:10px; border:1px solid #555; padding:8px; border-radius:8px;">
                         👕 Size: <b>{sz}</b> <br>
-                        Status: <b>{stock_msg}</b>
+                        Status: {'✅ GIVEN' if is_kit else f'📦 Stock: {rem}'}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -146,7 +138,15 @@ if menu == "🔍 Search & Entry":
             with col2:
                 with st.container(border=True):
                     st.subheader("✏️ Edit Information")
-                    new_name = st.text_input("Name", value=row['Name'])
+                    
+                    # 🔥 NEW: ROLE ADDER/EDITOR 🔥
+                    c_name, c_role = st.columns([1.5, 1])
+                    new_name = c_name.text_input("Name", value=row['Name'])
+                    
+                    role_options = ["Student", "Volunteer", "Teacher", "Organizer", "Guest", "Staff"]
+                    curr_role_idx = role_options.index(row['Role']) if row['Role'] in role_options else 0
+                    new_role = c_role.selectbox("Assign Role", role_options, index=curr_role_idx)
+                    
                     c_ph, c_tk = st.columns(2)
                     new_phone = c_ph.text_input("Spot Phone (Required)", value=row['Spot Phone'])
                     new_ticket = c_tk.text_input("Ticket No (Required)", value=row['Ticket_Number'])
@@ -181,7 +181,9 @@ if menu == "🔍 Search & Entry":
                             elif not new_kit and is_kit:
                                 st.session_state.stock[sz] += 1
                             
+                            # Data Update
                             st.session_state.df.at[idx, 'Name'] = new_name
+                            st.session_state.df.at[idx, 'Role'] = new_role # Role Update
                             st.session_state.df.at[idx, 'Spot Phone'] = new_phone
                             st.session_state.df.at[idx, 'Ticket_Number'] = new_ticket
                             st.session_state.df.at[idx, 'T_Shirt_Size'] = new_size
@@ -196,7 +198,7 @@ if menu == "🔍 Search & Entry":
                             s_data = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
                             conn.update(worksheet="Stock", data=pd.DataFrame(s_data))
                             
-                            st.success("✅ Updated Successfully!")
+                            st.success(f"✅ Updated! Role set to: {new_role}")
                             time.sleep(0.5)
                             st.rerun()
         else:
@@ -217,11 +219,10 @@ elif menu == "📜 Class Lists":
     
     st.dataframe(view_df[['Name', 'Class', 'Roll', 'Ticket_Number', 'Spot Phone', 'Entry_Status']], use_container_width=True)
 
-# --- TAB 3: BUS MANAGER (WITH CLASS VIEW) ---
+# --- TAB 3: BUS MANAGER ---
 elif menu == "🚌 Bus Manager":
     st.title("🚌 Fleet Management")
     
-    # Metrics
     cols = st.columns(4)
     buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
     for i, b in enumerate(buses):
@@ -229,8 +230,6 @@ elif menu == "🚌 Bus Manager":
         cols[i].metric(b, f"{cnt}/45", f"{45-cnt} Left")
     
     st.markdown("---")
-    
-    # 🔥 NEW: VIEW PASSENGERS WITH CLASS 🔥
     st.subheader("📋 Bus Passenger List")
     sel_bus = st.selectbox("Select Bus to View List:", buses)
     bus_df = st.session_state.df[st.session_state.df['Bus_Number'] == sel_bus]
@@ -238,8 +237,7 @@ elif menu == "🚌 Bus Manager":
     if not bus_df.empty:
         st.write(f"Showing list for **{sel_bus}** ({len(bus_df)} Passengers)")
         st.dataframe(bus_df[['Name', 'Class', 'Ticket_Number', 'Spot Phone', 'Roll']], use_container_width=True)
-    else:
-        st.info(f"{sel_bus} is empty.")
+    else: st.info(f"{sel_bus} is empty.")
         
     st.markdown("---")
     st.subheader("🚀 Auto-Assign Tool")
