@@ -88,7 +88,7 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.stock = load_stock()
     st.rerun()
 
-# --- TAB 1: SEARCH & ENTRY (WITH UNASSIGN BUTTON) ---
+# --- TAB 1: SEARCH & ENTRY ---
 if menu == "🔍 Search & Entry":
     st.title("🔍 Search, Edit & Entry")
     
@@ -109,7 +109,6 @@ if menu == "🔍 Search & Entry":
             sz = row['T_Shirt_Size']
             rem = st.session_state.stock.get(sz, 0)
             
-            # Stock Warning
             if not is_kit:
                 if rem == 0: st.error(f"❌ OUT OF STOCK! No {sz} size available.")
                 elif rem <= 5: st.warning(f"⚠️ LOW STOCK ALERT: Only {rem} remaining!")
@@ -133,19 +132,17 @@ if menu == "🔍 Search & Entry":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # 🔥 INSTANT UNASSIGN BUTTON 🔥
+                # UNASSIGN BUTTON
                 if row['Bus_Number'] != "Unassigned":
                     if st.button(f"❌ Unassign from {row['Bus_Number']}", type="secondary", use_container_width=True):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
                         conn.update(worksheet="Data", data=st.session_state.df)
                         st.success(f"Removed from {row['Bus_Number']}!")
-                        time.sleep(0.5)
-                        st.rerun()
+                        time.sleep(0.5); st.rerun()
 
             with col2:
                 with st.container(border=True):
                     st.subheader("✏️ Edit Information")
-                    
                     c_name, c_role = st.columns([1.5, 1])
                     new_name = c_name.text_input("Name", value=row['Name'])
                     role_opts = ["Student", "Volunteer", "Teacher", "College Staff", "Organizer"]
@@ -168,20 +165,19 @@ if menu == "🔍 Search & Entry":
                     new_bus = st.selectbox("🚌 Assign Bus", buses, index=buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0)
                     
                     if st.button("💾 Save Changes", type="primary", use_container_width=True):
-                        # Validation
                         if not new_phone or new_phone == 'N/A' or not new_ticket or new_ticket == 'N/A':
                             st.error("❌ Phone & Ticket are REQUIRED!")
                         else:
-                            # Bus Limit Check (45 Max)
+                            # Bus Limit Check
                             can_assign = True
-                            if new_bus != "Unassigned" and new_bus != row['Bus_Number']: # Only check if bus changed
+                            if new_bus != "Unassigned" and new_bus != row['Bus_Number']:
                                 bus_pax = df[df['Bus_Number'] == new_bus]
                                 if len(bus_pax) >= BUS_CAPACITY:
                                     st.error(f"⛔ {new_bus} is FULL ({len(bus_pax)}/{BUS_CAPACITY})!")
                                     can_assign = False
 
                             if can_assign:
-                                # Stock Update
+                                # Stock
                                 if new_kit:
                                     if is_kit and sz != new_size:
                                         st.session_state.stock[sz] += 1
@@ -191,7 +187,7 @@ if menu == "🔍 Search & Entry":
                                 elif not new_kit and is_kit:
                                     st.session_state.stock[sz] += 1
                                 
-                                # Data Save
+                                # Save
                                 st.session_state.df.at[idx, 'Name'] = new_name
                                 st.session_state.df.at[idx, 'Role'] = new_role
                                 st.session_state.df.at[idx, 'Spot Phone'] = new_phone
@@ -207,28 +203,23 @@ if menu == "🔍 Search & Entry":
                                 conn.update(worksheet="Data", data=st.session_state.df)
                                 s_d = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
                                 conn.update(worksheet="Stock", data=pd.DataFrame(s_d))
-                                st.success("✅ Updated Successfully!")
-                                time.sleep(0.5); st.rerun()
+                                st.success("✅ Updated!"); time.sleep(0.5); st.rerun()
         else: st.warning("No user found!")
 
 # --- TAB 2: ADD STAFF/TEACHER ---
 elif menu == "➕ Add Staff/Teacher":
     st.title("➕ Manually Add Teacher or Staff")
-    
     with st.form("add_staff_form"):
         c1, c2 = st.columns(2)
         name = c1.text_input("Full Name")
         phone = c2.text_input("Phone Number")
-        
         c3, c4 = st.columns(2)
         role = c3.selectbox("Role", ["Teacher", "College Staff", "Guest"])
         is_class_teacher = c4.checkbox("Is Class Teacher?")
-        
         class_name = "N/A"
-        if is_class_teacher:
-            class_name = st.text_input("Assigned Class Name (e.g., Class 10 - Science)")
+        if is_class_teacher: class_name = st.text_input("Class Name")
         
-        if st.form_submit_button("➕ Add to Database"):
+        if st.form_submit_button("➕ Add"):
             if name and phone:
                 manual_ticket = f"MAN-{int(time.time())}"
                 new_entry = {
@@ -239,8 +230,7 @@ elif menu == "➕ Add Staff/Teacher":
                 }
                 st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new_entry])], ignore_index=True)
                 conn.update(worksheet="Data", data=st.session_state.df)
-                st.success(f"✅ {name} added!")
-                time.sleep(1); st.rerun()
+                st.success(f"✅ {name} added!"); time.sleep(1); st.rerun()
             else: st.error("Name & Phone Required!")
 
 # --- TAB 3: CLASS LISTS ---
@@ -249,14 +239,13 @@ elif menu == "📜 Class Lists":
     classes = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
     sel_cls = st.selectbox("Select Class:", ["All"] + classes)
     v_df = st.session_state.df if sel_cls == "All" else st.session_state.df[st.session_state.df['Class'] == sel_cls]
-    
     c1, c2, c3 = st.columns(3)
     c1.metric("Total", len(v_df))
     c2.metric("In", len(v_df[v_df['Entry_Status']=='Done']))
     c3.metric("Pending", len(v_df)-len(v_df[v_df['Entry_Status']=='Done']))
     st.dataframe(v_df[['Name', 'Class', 'Roll', 'Spot Phone', 'Entry_Status']], use_container_width=True)
 
-# --- TAB 4: BUS MANAGER (WITH QUICK UNASSIGN TOOL) ---
+# --- TAB 4: BUS MANAGER ---
 elif menu == "🚌 Bus Manager":
     st.title("🚌 Fleet Management")
     
@@ -268,60 +257,91 @@ elif menu == "🚌 Bus Manager":
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free")
         cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     
+    # 🔥 PRINT MANIFEST SECTION 🔥
     st.markdown("---")
+    st.subheader("🖨️ Print Signing Sheets")
     
-    # 🔥 NEW: QUICK UNASSIGN TOOL 🔥
-    with st.expander("🗑️ Quick Unassign Tool (By Ticket Number)"):
-        c_un1, c_un2 = st.columns([3, 1])
-        un_ticket = c_un1.text_input("Enter Ticket Number to Unassign:")
-        if c_un2.button("Unassign Now"):
-            target = st.session_state.df[st.session_state.df['Ticket_Number'] == un_ticket]
-            if not target.empty:
-                t_idx = target.index[0]
-                old_bus = st.session_state.df.at[t_idx, 'Bus_Number']
-                if old_bus != "Unassigned":
-                    st.session_state.df.at[t_idx, 'Bus_Number'] = 'Unassigned'
-                    conn.update(worksheet="Data", data=st.session_state.df)
-                    st.success(f"✅ Removed Ticket {un_ticket} from {old_bus}!")
-                    time.sleep(1); st.rerun()
-                else: st.warning("User is already Unassigned.")
-            else: st.error("Ticket not found!")
-
-    st.markdown("---")
-    st.subheader("📋 Bus Passenger List")
-    sel_bus = st.selectbox("Select Bus:", buses)
-    b_df = st.session_state.df[st.session_state.df['Bus_Number'] == sel_bus]
-    if not b_df.empty:
-        st.dataframe(b_df[['Name', 'Role', 'Class', 'Spot Phone']], use_container_width=True)
-    else: st.info("Bus Empty")
+    p_bus = st.selectbox("Select Bus to Print:", ["All Buses"] + buses)
+    
+    if st.button("📄 Generate Manifest for Printing"):
+        # HTML Generator
+        html_content = """
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; }
+                .bus-page { page-break-after: always; padding: 20px; border: 2px solid #000; margin-bottom: 20px; }
+                h1 { text-align: center; text-decoration: underline; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { border: 1px solid black; padding: 8px; text-align: left; font-size: 12px; }
+                th { background-color: #f2f2f2; }
+            </style>
+        </head>
+        <body>
+        """
+        
+        target_buses = buses if p_bus == "All Buses" else [p_bus]
+        
+        for bus in target_buses:
+            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == bus]
+            if not b_df.empty:
+                html_content += f"""
+                <div class="bus-page">
+                    <h1>{bus} - Passenger Manifest ({len(b_df)} Pax)</h1>
+                    <p><b>Date:</b> ____________________ &nbsp;&nbsp; <b>Supervisor:</b> ____________________</p>
+                    <table>
+                        <tr>
+                            <th style="width:5%">SL</th>
+                            <th style="width:25%">Name</th>
+                            <th style="width:15%">Role</th>
+                            <th style="width:15%">Phone</th>
+                            <th style="width:20%">Sign (IN)</th>
+                            <th style="width:20%">Sign (OUT)</th>
+                        </tr>
+                """
+                for i, (_, r) in enumerate(b_df.iterrows(), 1):
+                    html_content += f"""
+                        <tr>
+                            <td>{i}</td>
+                            <td>{r['Name']}</td>
+                            <td>{r['Role']}</td>
+                            <td>{r['Spot Phone']}</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    """
+                html_content += "</table></div>"
+        
+        html_content += "</body></html>"
+        
+        # Download Button
+        st.download_button(
+            label="⬇️ Download Print-Ready HTML",
+            data=html_content,
+            file_name=f"Manifest_{p_bus}_{int(time.time())}.html",
+            mime="text/html"
+        )
     
     st.markdown("---")
     st.subheader("🚀 Smart Auto-Assign")
     c1, c2, c3 = st.columns(3)
     role = c1.selectbox("Role", ["Student", "Volunteer", "Teacher"])
     start_b = c2.selectbox("Start Bus", buses)
-    
     if c3.button("Auto Assign"):
         mask = st.session_state.df['Role'] == role
         indices = st.session_state.df[mask].index.tolist()
         b_idx = buses.index(start_b)
         assigned_cnt = 0
-        
         for pid in indices:
             while b_idx < 4:
                 curr_bus = buses[b_idx]
                 curr_df = st.session_state.df[st.session_state.df['Bus_Number'] == curr_bus]
-                
-                # Limit Check 45
                 if len(curr_df) < BUS_CAPACITY:
                     st.session_state.df.at[pid, 'Bus_Number'] = curr_bus
-                    assigned_cnt += 1
-                    break
+                    assigned_cnt += 1; break
                 else: b_idx += 1 
-        
         conn.update(worksheet="Data", data=st.session_state.df)
-        st.success(f"Assigned {assigned_cnt} people!")
-        st.rerun()
+        st.success(f"Assigned {assigned_cnt} people!"); st.rerun()
 
 # --- TAB 5: DASHBOARD ---
 elif menu == "📊 Dashboard":
