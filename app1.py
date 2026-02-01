@@ -100,7 +100,7 @@ def load_data():
         for c in cols:
             if c not in df.columns: df[c] = ''
         
-        for col in ['Ticket_Number', 'Spot Phone', 'Guardian Phone', 'Roll']:
+        for col in ['Ticket_Number', 'Spot Phone', 'Guardian Phone', 'Roll', 'Class']:
             df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().replace('nan', 'N/A')
         
         df = df.fillna('')
@@ -372,6 +372,7 @@ elif menu == "📦 Stock":
 # --- BUS MANAGER ---
 elif menu == "🚌 Bus Fleet":
     st.title("🚌 Smart Fleet Manager")
+    
     cols = st.columns(4)
     bus_names = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
     for i, b in enumerate(bus_names):
@@ -379,37 +380,62 @@ elif menu == "🚌 Bus Fleet":
         cols[i].metric(b, f"{count}/{BUS_CAPACITY}", delta=f"{BUS_CAPACITY-count} left", delta_color="normal")
     
     st.markdown("---")
-    c1, c2, c3, c4 = st.columns(4)
-    grp = c1.selectbox("Role Group", ["Student", "Volunteer", "Teacher"])
-    start_bus_idx = c2.selectbox("Start Bus", bus_names)
     
-    if c3.button("🚀 Smart Assign", type="primary"):
-        mask = st.session_state.df['Role'] == grp
-        people_indices = st.session_state.df[mask].index.tolist()
-        curr_bus_idx = bus_names.index(start_bus_idx)
-        for pid in people_indices:
-            curr_bus_name = bus_names[curr_bus_idx]
-            curr_count = len(st.session_state.df[st.session_state.df['Bus_Number'] == curr_bus_name])
-            if curr_count < BUS_CAPACITY:
-                st.session_state.df.at[pid, 'Bus_Number'] = curr_bus_name
+    # --- ASSIGNMENT SECTION ---
+    c1, c2, c3, c4 = st.columns(4)
+    
+    assign_type = c1.selectbox("Assign By", ["Role", "Class"])
+    
+    if assign_type == "Role":
+        options = ["Student", "Volunteer", "Organizer", "Teacher", "Guest"]
+    else:
+        options = sorted([x for x in st.session_state.df['Class'].unique().tolist() if x and x != "N/A"])
+    
+    grp = c2.selectbox(f"Select {assign_type}", ["Select..."] + options)
+    
+    start_bus_idx = c3.selectbox("Start Bus", bus_names)
+    
+    if c4.button("🚀 Smart Assign", type="primary"):
+        if grp == "Select...":
+            st.error("Select a group!")
+        else:
+            if assign_type == "Role": mask = st.session_state.df['Role'] == grp
+            else: mask = st.session_state.df['Class'] == grp
+                
+            people_indices = st.session_state.df[mask].index.tolist()
+            if not people_indices: st.warning("No people found!")
             else:
-                if curr_bus_idx < 3: curr_bus_idx += 1
-                else: break
-        save_data()
-        st.success("Smart Assigned!")
-        st.rerun()
+                curr_bus_idx = bus_names.index(start_bus_idx)
+                for pid in people_indices:
+                    curr_bus_name = bus_names[curr_bus_idx]
+                    curr_count = len(st.session_state.df[st.session_state.df['Bus_Number'] == curr_bus_name])
+                    
+                    if curr_count < BUS_CAPACITY:
+                        st.session_state.df.at[pid, 'Bus_Number'] = curr_bus_name
+                    else:
+                        if curr_bus_idx < 3: curr_bus_idx += 1
+                        else: break
+                
+                save_data()
+                st.success("Smart Assigned!")
+                time.sleep(1)
+                st.rerun()
 
-    if c4.button("❌ Unassign"):
-        mask = st.session_state.df['Role'] == grp
-        st.session_state.df.loc[mask, 'Bus_Number'] = 'Unassigned'
-        save_data()
-        st.warning("Unassigned!")
-        st.rerun()
+    if st.button("❌ Unassign Selected Group"):
+        if grp == "Select...": st.error("Select group first!")
+        else:
+            if assign_type == "Role": mask = st.session_state.df['Role'] == grp
+            else: mask = st.session_state.df['Class'] == grp
+            st.session_state.df.loc[mask, 'Bus_Number'] = 'Unassigned'
+            save_data()
+            st.warning("Unassigned!")
+            st.rerun()
 
+    st.markdown("### 📋 Bus Manifest")
     tabs = st.tabs(["Unassigned"] + bus_names)
     with tabs[0]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'].isin(['Unassigned', ''])][['Name', 'Role', 'Class']])
     for i, b in enumerate(bus_names):
-        with tabs[i+1]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'] == b][['Name', 'Role']])
+        with tabs[i+1]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'] == b][['Name', 'Role', 'Class']])
 
 # --- EXPORT ---
 elif menu == "📥 Export":
@@ -417,12 +443,14 @@ elif menu == "📥 Export":
     
     st.markdown("### 📄 Printable Bus Lists")
     
-    # HTML GENERATION Logic
+    # HTML GENERATION (With UTF-8 Fix)
     html_content = """
-    <html>
+    <!DOCTYPE html>
+    <html lang="en">
     <head>
+    <meta charset="UTF-8">
     <style>
-        body { font-family: Arial, sans-serif; }
+        body { font-family: 'Arial', sans-serif; }
         .bus-title { font-size: 30px; font-weight: bold; text-align: center; margin-top: 20px; text-transform: uppercase; border-bottom: 3px solid #000; padding-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #000; padding: 10px; text-align: left; font-size: 14px; }
@@ -435,45 +463,35 @@ elif menu == "📥 Export":
     """
     
     bus_list = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-    has_data = False
     
     for bus in bus_list:
-        # Filter data for this bus
         bus_df = st.session_state.df[st.session_state.df['Bus_Number'] == bus].copy()
         
         if not bus_df.empty:
-            has_data = True
-            # Add Page Break for buses after the first one
-            if bus != "Bus 1":
-                html_content += '<div class="page-break"></div>'
+            if bus != "Bus 1": html_content += '<div class="page-break"></div>'
             
             html_content += f'<div class="bus-title">{bus} Manifest</div>'
             html_content += f'<p>Total Passengers: {len(bus_df)}</p>'
             html_content += '<table><thead><tr><th>Sl.</th><th>Class</th><th>Name</th><th>Ticket No.</th><th class="sign-col">Signature</th></tr></thead><tbody>'
             
             for i, (_, row) in enumerate(bus_df.iterrows(), 1):
-                html_content += f"<tr><td>{i}</td><td>{row['Role']}</td><td>{row['Name']}</td><td>{row['Ticket_Number']}</td><td></td></tr>"
+                html_content += f"<tr><td>{i}</td><td>{row['Class']}</td><td>{row['Name']}</td><td>{row['Ticket_Number']}</td><td></td></tr>"
             
             html_content += '</tbody></table>'
     
     html_content += "</body></html>"
     
     c1, c2 = st.columns(2)
-    
-    # Button 1: Printable HTML
     with c1:
         st.download_button(
             label="📄 Download Printable Bus Manifest (PDF Ready)",
             data=html_content,
             file_name="Bus_Manifest_Printable.html",
-            mime="text/html",
-            help="Download this file and open in Chrome/Edge. Then press Ctrl+P to save as PDF or Print."
+            mime="text/html"
         )
-    
-    # Button 2: Raw CSV
     with c2:
         st.download_button(
-            label="💾 Download Full Database (CSV)",
+            label="💾 Download Full CSV",
             data=st.session_state.df.to_csv(index=False).encode('utf-8'),
             file_name=f"Event_Data_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
