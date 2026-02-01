@@ -6,7 +6,7 @@ import time
 import altair as alt
 
 # ==================== 1. CONFIG & STYLE ====================
-st.set_page_config(page_title="Easy Event Manager", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Event OS Pro", page_icon="⚡", layout="wide")
 
 st.markdown("""
     <style>
@@ -27,10 +27,12 @@ st.markdown("""
     .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; color: white; }
     .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 8px 0; font-size: 14px; color: #ccc; }
     
-    /* Status Badges */
-    .badge { padding: 5px 10px; border-radius: 5px; font-weight: bold; font-size: 12px; margin-top: 5px; display: inline-block; }
-    .b-green { background: rgba(0, 255, 136, 0.1); color: #00ff88; border: 1px solid #00ff88; }
-    .b-red { background: rgba(255, 75, 75, 0.1); color: #ff4b4b; border: 1px solid #ff4b4b; }
+    /* Input Fields Style */
+    input[type="text"] {
+        border: 1px solid #444 !important;
+        background-color: #1a1a1a !important;
+        color: white !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -85,15 +87,14 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.stock = load_stock()
     st.rerun()
 
-# --- TAB 1: SEARCH & ENTRY (THE MAIN WORKSPACE) ---
+# --- TAB 1: SEARCH & ENTRY (WITH EDIT & VALIDATION) ---
 if menu == "🔍 Search & Entry":
-    st.title("🔍 Search & Manage Entry")
+    st.title("🔍 Search, Edit & Entry")
     
     q = st.text_input("🔎 Search by Ticket / Name / Phone:", placeholder="Type here...").strip()
     
     if q:
         df = st.session_state.df
-        # Search Logic
         mask = df['Name'].str.contains(q, case=False) | df['Ticket_Number'].str.contains(q, case=False) | df['Spot Phone'].str.contains(q, case=False)
         res = df[mask]
         
@@ -128,46 +129,60 @@ if menu == "🔍 Search & Entry":
                 </div>
                 """, unsafe_allow_html=True)
 
-            # --- RIGHT: CONTROLS ---
+            # --- RIGHT: EDIT & CONTROLS ---
             with col2:
-                st.subheader("⚡ Actions")
-                
-                # 1. Entry & Kit Toggles
-                c_a, c_b = st.columns(2)
-                new_ent = c_a.toggle("✅ Mark Entry", value=is_ent)
-                new_kit = c_b.toggle("👕 Give T-Shirt", value=is_kit)
-                
-                # 2. Bus Assignment Dropdown
-                buses = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-                curr_bus_idx = buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0
-                new_bus = st.selectbox("🚌 Assign Bus", buses, index=curr_bus_idx)
-                
-                # 3. Save Button Logic
-                if st.button("💾 Save Changes", type="primary", use_container_width=True):
-                    # Validation
-                    if new_ent and (row['Spot Phone'] in ['N/A', ''] or row['Ticket_Number'] in ['N/A', '']):
-                        st.error("❌ Phone & Ticket Number Required for Entry!")
-                    else:
-                        # Stock Update
-                        if new_kit and not is_kit: st.session_state.stock[sz] -= 1
-                        elif not new_kit and is_kit: st.session_state.stock[sz] += 1
-                        
-                        # Data Update
-                        st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else 'N/A'
-                        st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
-                        st.session_state.df.at[idx, 'Bus_Number'] = new_bus
-                        if new_ent and row['Entry_Time'] == 'N/A':
-                            st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
-                        
-                        # Sync
-                        conn.update(worksheet="Data", data=st.session_state.df)
-                        # Stock update logic
-                        s_data = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
-                        conn.update(worksheet="Stock", data=pd.DataFrame(s_data))
-                        
-                        st.success("Updated Successfully!")
-                        time.sleep(0.5)
-                        st.rerun()
+                with st.container(border=True):
+                    st.subheader("✏️ Edit Information")
+                    
+                    # 🔥 Editable Fields 🔥
+                    new_name = st.text_input("Name", value=row['Name'])
+                    c_ph, c_tk = st.columns(2)
+                    new_phone = c_ph.text_input("Spot Phone (Required)", value=row['Spot Phone'])
+                    new_ticket = c_tk.text_input("Ticket No (Required)", value=row['Ticket_Number'])
+                    
+                    st.markdown("---")
+                    st.subheader("⚡ Actions")
+                    
+                    # 1. Entry & Kit Toggles
+                    c_a, c_b = st.columns(2)
+                    new_ent = c_a.toggle("✅ Mark Entry", value=is_ent)
+                    new_kit = c_b.toggle("👕 Give T-Shirt", value=is_kit)
+                    
+                    # 2. Bus Assignment
+                    buses = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
+                    curr_bus_idx = buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0
+                    new_bus = st.selectbox("🚌 Assign Bus", buses, index=curr_bus_idx)
+                    
+                    # 3. Save Button Logic
+                    if st.button("💾 Save Changes", type="primary", use_container_width=True):
+                        # 🔥 VALIDATION: Phone & Ticket CANNOT be empty 🔥
+                        if not new_phone or new_phone == 'N/A' or not new_ticket or new_ticket == 'N/A':
+                            st.error("❌ Error: Spot Phone and Ticket Number are REQUIRED!")
+                        else:
+                            # Stock Update
+                            if new_kit and not is_kit: st.session_state.stock[sz] -= 1
+                            elif not new_kit and is_kit: st.session_state.stock[sz] += 1
+                            
+                            # Data Update
+                            st.session_state.df.at[idx, 'Name'] = new_name
+                            st.session_state.df.at[idx, 'Spot Phone'] = new_phone
+                            st.session_state.df.at[idx, 'Ticket_Number'] = new_ticket
+                            
+                            st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else 'N/A'
+                            st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
+                            st.session_state.df.at[idx, 'Bus_Number'] = new_bus
+                            
+                            if new_ent and row['Entry_Time'] == 'N/A':
+                                st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
+                            
+                            # Sync
+                            conn.update(worksheet="Data", data=st.session_state.df)
+                            s_data = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
+                            conn.update(worksheet="Stock", data=pd.DataFrame(s_data))
+                            
+                            st.success("✅ Info Updated Successfully!")
+                            time.sleep(0.5)
+                            st.rerun()
         else:
             st.warning("No user found!")
 
