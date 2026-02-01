@@ -31,7 +31,7 @@ st.markdown("""
     /* Digital ID Card Styling */
     .id-card {
         background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-        padding: 25px;
+        padding: 20px;
         border-radius: 15px;
         color: #fff;
         text-align: center;
@@ -52,23 +52,27 @@ st.markdown("""
         margin-bottom: 10px;
         box-shadow: 0 0 10px #ffcc00;
     }
-    .id-name { font-size: 28px; font-weight: bold; margin: 10px 0; text-shadow: 2px 2px 4px #000; }
-    .id-info { font-size: 16px; margin: 6px 0; color: #c5c6c7; }
+    .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; text-shadow: 2px 2px 4px #000; }
+    .id-info { font-size: 15px; margin: 5px 0; color: #e0e0e0; }
+    
+    /* Badges */
+    .tshirt-badge {
+        font-size: 16px; 
+        font-weight: bold; 
+        margin-top: 15px; 
+        padding: 8px; 
+        border-radius: 8px; 
+        background: rgba(0,0,0,0.4);
+        border: 1px solid #fff;
+    }
     .status-badge {
-        margin-top: 15px;
-        font-size: 18px;
+        margin-top: 10px;
+        font-size: 16px;
         font-weight: bold;
         padding: 8px;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.1);
-    }
-    .tshirt-badge {
-        font-size: 18px; 
-        font-weight: bold; 
-        margin-top: 10px; 
-        padding: 5px; 
-        border-radius: 5px; 
-        background: rgba(0,0,0,0.3);
+        border: 1px solid #fff;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -116,7 +120,7 @@ def load_data():
         
         # STRING FIXES
         for col in ['Ticket_Number', 'Spot Phone', 'Guardian Phone', 'Roll']:
-            df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+            df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().replace('nan', 'N/A')
         
         df = df.fillna('')
         return df
@@ -252,29 +256,24 @@ elif menu == "🔍 Search & Manage":
                 t_status = f"👕 {sz} : OUT OF STOCK ❌"
                 t_color = "#f87171" # Red
 
-            # --- DIGITAL ID CARD UI ---
+            # --- DIGITAL ID CARD UI (FIXED HTML) ---
             col_card, col_action = st.columns([1, 1.5])
             
             with col_card:
+                # IMPORTANT: No indentation inside the HTML string to avoid code-block rendering
                 st.markdown(f"""
-                <div class="id-card">
-                    <div class="id-role">{row['Role'].upper()}</div>
-                    <div class="id-name">{row['Name']}</div>
-                    <div class="id-info">🎟 Ticket: <b>{row['Ticket_Number']}</b></div>
-                    <div class="id-info">🆔 Roll: {row['Roll']}</div>
-                    <div class="id-info">📞 Spot: {row['Spot Phone']}</div>
-                    <div class="id-info">👨‍👩‍👦 G. Phone: {row['Guardian Phone']}</div>
-                    <div class="id-info">🚌 Bus: {row['Bus_Number']}</div>
-                    
-                    <div class="tshirt-badge" style="color: {t_color}; border: 1px solid {t_color};">
-                        {t_status}
-                    </div>
-                    
-                    <div class="status-badge" style="color: {'#4ade80' if row['Entry_Status']=='Done' else '#f87171'}; border: 1px solid {'#4ade80' if row['Entry_Status']=='Done' else '#f87171'};">
-                        {'✅ CHECKED IN' if row['Entry_Status']=='Done' else '⏳ NOT ENTERED'}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+<div class="id-card">
+<div class="id-role">{row['Role'].upper()}</div>
+<div class="id-name">{row['Name']}</div>
+<div class="id-info">🎟 Ticket: <b>{row['Ticket_Number']}</b></div>
+<div class="id-info">🆔 Roll: {row['Roll']}</div>
+<div class="id-info">📞 Spot: {row['Spot Phone']}</div>
+<div class="id-info">👨‍👩‍👦 G. Phone: {row['Guardian Phone']}</div>
+<div class="id-info">🚌 Bus: {row['Bus_Number']}</div>
+<div class="tshirt-badge" style="color: {t_color}; border: 1px solid {t_color};">{t_status}</div>
+<div class="status-badge" style="color: {'#4ade80' if row['Entry_Status']=='Done' else '#f87171'}; border: 1px solid {'#4ade80' if row['Entry_Status']=='Done' else '#f87171'};">{'✅ CHECKED IN' if row['Entry_Status']=='Done' else '⏳ NOT ENTERED'}</div>
+</div>
+""", unsafe_allow_html=True)
 
             # ACTION PANEL
             with col_action:
