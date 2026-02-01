@@ -6,18 +6,18 @@ import time
 import pytz
 import streamlit.components.v1 as components
 
-# ==================== 1. CONFIG & STYLE (THEMED BACKGROUND) ====================
-st.set_page_config(page_title="Event OS Pro", page_icon="🎆", layout="wide")
+# ==================== 1. CONFIG & STYLE (DJ THEME) ====================
+st.set_page_config(page_title="Event OS Pro | Willian's 26", page_icon="🎆", layout="wide")
 
 st.markdown("""
     <style>
-    /* 🔥 FULL PAGE BACKGROUND WITH FADED DJ THEME 🔥 */
+    /* 🔥 FULL PAGE BACKGROUND (DJ/Concert Vibe) 🔥 */
     .stApp {
-        background-color: #000000; /* Fallback */
+        background-color: #000000;
         
-        /* Dark Overlay (0.85) + DJ Image */
+        /* Dark Overlay + DJ Image */
         background-image: 
-            linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.9)),
+            linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95)),
             url("https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop");
             
         background-size: cover;
@@ -26,69 +26,49 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* SIDEBAR - Semi-Transparent Dark */
+    /* SIDEBAR - Semi-Transparent */
     section[data-testid="stSidebar"] {
-        background-color: rgba(10, 10, 10, 0.9);
+        background-color: rgba(5, 5, 10, 0.95);
         border-right: 1px solid #333;
     }
     
-    /* METRICS BOX - Glassmorphism */
+    /* METRICS - Glassmorphism */
     div[data-testid="stMetric"] {
-        background-color: rgba(20, 20, 20, 0.7); /* Transparent */
+        background-color: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-left: 5px solid #d500f9;
+        border-left: 4px solid #d500f9; /* Neon Purple */
+        border-radius: 12px;
         padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }
-    div[data-testid="stMetricLabel"] { color: #dcdcdc !important; }
-    div[data-testid="stMetricValue"] { color: #ffffff !important; text-shadow: 0 0 10px #d500f9; }
+    div[data-testid="stMetricLabel"] { color: #aaa !important; }
+    div[data-testid="stMetricValue"] { color: #fff !important; text-shadow: 0 0 10px #d500f9; }
     
     /* === ID CARD STYLES (PREMIUM) === */
-    
-    /* 1. STUDENT (Modern Blue) */
     .card-student {
-        background: linear-gradient(145deg, rgba(15, 32, 39, 0.9), rgba(44, 83, 100, 0.9));
-        backdrop-filter: blur(5px);
-        border: 1px solid #4ca1af;
-        box-shadow: 0 4px 15px rgba(76, 161, 175, 0.3);
-        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
+        background: linear-gradient(145deg, rgba(15, 32, 39, 0.8), rgba(44, 83, 100, 0.8));
+        border: 1px solid #4ca1af; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
     }
-
-    /* 2. ORGANIZER (Neon Purple) */
     .card-organizer {
-        background: linear-gradient(135deg, rgba(58, 0, 136, 0.9), rgba(114, 9, 183, 0.9));
-        border: 2px solid #f72585;
-        box-shadow: 0 0 20px rgba(247, 37, 133, 0.6);
-        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
+        background: linear-gradient(135deg, rgba(58, 0, 136, 0.8), rgba(114, 9, 183, 0.8));
+        border: 2px solid #f72585; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
+        box-shadow: 0 0 15px rgba(247, 37, 133, 0.4);
     }
-
-    /* 3. TEACHER / STAFF (Teal) */
     .card-staff {
-        background: linear-gradient(145deg, rgba(17, 153, 142, 0.9), rgba(56, 239, 125, 0.9));
-        border: 2px solid #ffffff;
-        box-shadow: 0 4px 15px rgba(56, 239, 125, 0.4);
-        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
+        background: linear-gradient(145deg, rgba(17, 153, 142, 0.8), rgba(56, 239, 125, 0.8));
+        border: 2px solid #fff; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
         color: #000 !important;
     }
     .card-staff .id-name, .card-staff .info-row { color: #000 !important; font-weight: bold; }
-
-    /* 4. VOLUNTEER (Orange) */
+    
     .card-volunteer {
-        background: linear-gradient(145deg, rgba(255, 65, 108, 0.9), rgba(255, 75, 43, 0.9));
-        border: 1px solid #ff9966;
-        box-shadow: 0 4px 15px rgba(255, 75, 43, 0.4);
-        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
+        background: linear-gradient(145deg, rgba(255, 65, 108, 0.8), rgba(255, 75, 43, 0.8));
+        border: 1px solid #ff9966; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
     }
-
-    /* 5. ELITE (Gold) */
     .card-elite {
         background: radial-gradient(ellipse at center, #FFD700 0%, #B8860B 100%);
-        border: 3px solid #FFF;
-        box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
-        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
-        color: #000 !important;
+        border: 3px solid #FFF; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
+        color: #000 !important; box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
     }
     .card-elite .id-name, .card-elite .info-row { color: #000 !important; font-weight: bold; }
 
@@ -99,9 +79,7 @@ st.markdown("""
     
     /* INPUT FIELDS */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background-color: rgba(0, 0, 0, 0.8);
-        color: white;
-        border: 1px solid #555;
+        background-color: rgba(20, 20, 20, 0.9); color: white; border: 1px solid #444;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -119,8 +97,7 @@ def load_data():
         for col in df.columns:
             df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).replace(['nan', 'None', ''], 'N/A')
         return df
-    except Exception as e:
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
 def load_stock():
     try:
@@ -146,10 +123,11 @@ if not st.session_state.logged_in:
             else: st.error("Wrong Password!")
     st.stop()
 
-# ==================== 4. LIVE DIGITAL TIMER ====================
+# ==================== 4. TIMER & MENU ====================
 st.sidebar.title("⚡ Menu")
 target_iso = "2026-02-03T07:00:00+06:00"
 
+# 🔥 TIMER WITH DATE 🔥
 timer_html = f"""
 <!DOCTYPE html>
 <html>
@@ -165,9 +143,18 @@ timer_html = f"""
         border: 1px solid rgba(255,255,255,0.2);
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }}
-    .label {{ font-family: sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; color: #00ff88; }}
+    .label {{ font-family: sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; color: #00ff88; }}
     .time {{ font-size: 28px; font-weight: bold; letter-spacing: 1px; color: #fff; text-shadow: 0 0 10px #00ff88; }}
-    .sub-labels {{ font-size: 10px; opacity: 0.6; margin-top: 2px; font-family: sans-serif; }}
+    .sub-labels {{ font-size: 10px; opacity: 0.7; font-family: sans-serif; margin-bottom: 8px; }}
+    .date-box {{ 
+        border-top: 1px solid rgba(255,255,255,0.2); 
+        padding-top: 5px; 
+        font-family: sans-serif; 
+        font-size: 12px; 
+        color: #ff00cc; 
+        font-weight: bold; 
+        letter-spacing: 1px;
+    }}
 </style>
 </head>
 <body>
@@ -175,6 +162,7 @@ timer_html = f"""
         <div class="label">EVENT COUNTDOWN</div>
         <div id="countdown" class="time">-- : -- : --</div>
         <div class="sub-labels">HOURS &nbsp;&nbsp; MIN &nbsp;&nbsp; SEC</div>
+        <div class="date-box">📅 3RD FEB 2026</div>
     </div>
 <script>
 function updateTimer() {{
@@ -197,14 +185,14 @@ updateTimer();
 </body>
 </html>
 """
-with st.sidebar: components.html(timer_html, height=130)
+with st.sidebar: components.html(timer_html, height=155)
 
 menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 View Lists", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
 
 if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear(); st.session_state.df = load_data(); st.session_state.stock = load_stock(); st.rerun()
 
-# --- TAB: SEARCH & ENTRY ---
+# --- TAB 1: SEARCH & ENTRY ---
 if menu == "🔍 Search & Entry":
     st.title("🔍 Search & Entry")
     q = st.text_input("🔎 Search by Ticket / Name / Phone:").strip()
@@ -219,7 +207,7 @@ if menu == "🔍 Search & Entry":
             idx = res.index[0]
             row = df.loc[idx]
             
-            # Card Style Logic
+            # Card Style
             role = row['Role']
             if role in ["Principal", "College Head"]: card_class = "card-elite"
             elif role == "Organizer": card_class = "card-organizer"
@@ -410,6 +398,17 @@ elif menu == "📊 Dashboard":
         st.bar_chart(df['T_Shirt_Size'].value_counts())
     else:
         st.warning("⚠️ No data available.")
+
+# --- SIDEBAR FOOTER (CREDITS) ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("""
+<div style="text-align: center; font-family: sans-serif; color: rgba(255,255,255,0.5); font-size: 11px;">
+    <p style="margin-bottom:5px;">VISUALS BY</p>
+    <h3 style="margin:0; color: white; text-shadow: 0 0 10px #00ff88; font-family: sans-serif;">CineMotion</h3>
+    <p style="margin:10px 0 5px 0;">SYSTEM BY</p>
+    <h3 style="margin:0; color: white; text-shadow: 0 0 10px #00ccff; font-family: sans-serif;">Gemini AI</h3>
+</div>
+""", unsafe_allow_html=True)
 
 # --- TAB: ADMIN DATA ---
 elif menu == "📝 Admin Data":
