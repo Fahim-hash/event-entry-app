@@ -111,7 +111,7 @@ if menu == "🏠 Dashboard":
     st.subheader("📡 Live Activity Feed")
     st.dataframe(df[df['Entry_Status']=='Done'].sort_values('Entry_Time', ascending=False).head(10)[['Name', 'Role', 'Entry_Time', 'Bus_Number']], use_container_width=True)
 
-# --- 5. MODULE: SEARCH & DIGITAL ID ---
+# --- 5. MODULE: SEARCH & DIGITAL ID (With Dashboard Unassign) ---
 elif menu == "🔍 Search & Entry":
     st.title("🔍 Access Terminal")
     q = st.text_input("Scan Ticket / Enter Phone / Name:").strip()
@@ -143,10 +143,20 @@ elif menu == "🔍 Search & Entry":
             
             with col2:
                 with st.container(border=True):
-                    st.subheader("⚡ Status Update")
+                    st.subheader("⚡ Quick Actions")
                     ca, cb = st.columns(2)
                     e_ent = ca.toggle("Check In", value=(row['Entry_Status']=='Done'))
                     e_tsh = cb.toggle("Give Kit", value=(row['T_Shirt_Collected']=='Yes'))
+                    
+                    # 🔥 NEW: DASHBOARD UNASSIGN FEATURE 🔥
+                    if row['Bus_Number'] != 'Unassigned':
+                        if st.button("❌ UNASSIGN BUS", type="secondary", use_container_width=True):
+                            st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
+                            conn.update(worksheet="Data", data=st.session_state.df)
+                            add_log(f"Unassigned bus for {row['Name']}")
+                            st.warning(f"Bus unassigned for {row['Name']}")
+                            time.sleep(0.5)
+                            st.rerun()
                     
                     if st.button("💾 SAVE CHANGES", type="primary", use_container_width=True):
                         st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if e_ent else 'N/A'
@@ -159,10 +169,27 @@ elif menu == "🔍 Search & Entry":
                         st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if e_tsh else 'No'
                         
                         conn.update(worksheet="Data", data=st.session_state.df)
-                        add_log(f"Updated {row['Name']}")
+                        add_log(f"Updated status for {row['Name']}")
                         st.success("Synchronized!")
                         time.sleep(0.5)
                         st.rerun()
+
+                if st.session_state.user_role == 'admin':
+                    with st.expander("🛠 Admin Profile Edit"):
+                        with st.form("admin_edit"):
+                            en = st.text_input("Name", row['Name'])
+                            et = st.text_input("Ticket", row['Ticket_Number'])
+                            er = st.selectbox("Role", ["Student", "Volunteer", "Teacher", "Organizer"], index=0)
+                            eb = st.selectbox("Bus", ["Bus 1", "Bus 2", "Bus 3", "Bus 4", "Unassigned"], index=0)
+                            if st.form_submit_button("Force Update"):
+                                st.session_state.df.at[idx, 'Name'] = en
+                                st.session_state.df.at[idx, 'Ticket_Number'] = et
+                                st.session_state.df.at[idx, 'Role'] = er
+                                st.session_state.df.at[idx, 'Bus_Number'] = eb
+                                conn.update(worksheet="Data", data=st.session_state.df)
+                                st.success("Admin Update Successful")
+                                st.rerun()
+        else: st.warning("No matches in database!")
 
 # --- 6. MODULE: TEACHERS ---
 elif menu == "👨‍🏫 Teachers":
