@@ -76,10 +76,10 @@ if not st.session_state.logged_in:
 # ==================== 4. MAIN APP ====================
 st.sidebar.title("⚡ Menu")
 
-# 🔥 UPDATED COUNTDOWN TIMER (Feb 3, 7:00 AM) 🔥
+# 🔥 COUNTDOWN WITH SECONDS (Feb 3, 7:00 AM) 🔥
 tz = pytz.timezone('Asia/Dhaka') # GMT+6
 now = datetime.now(tz)
-target_date = datetime(2026, 2, 3, 7, 0, 0, tzinfo=tz) # Feb 3rd, 2026 at 7:00 AM
+target_date = datetime(2026, 2, 3, 7, 0, 0, tzinfo=tz) # Target Time
 remaining = target_date - now
 
 if remaining.total_seconds() > 0:
@@ -87,11 +87,12 @@ if remaining.total_seconds() > 0:
     hours, remainder = divmod(remaining.seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     
+    # Updated Visual with Seconds
     st.sidebar.markdown(f"""
     <div style="background: linear-gradient(45deg, #ff00cc, #333399); padding: 15px; border-radius: 12px; text-align: center; color: white; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
-        <h4 style="margin:0; font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px;">🚀 Event Starts In</h4>
-        <div style="font-size: 28px; font-weight: 900; margin: 5px 0; text-shadow: 0 0 10px rgba(255,255,255,0.5);">
-            {days}d {hours}h {minutes}m
+        <h4 style="margin:0; font-size: 13px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px;">🚀 Event Starts In</h4>
+        <div style="font-size: 22px; font-weight: 900; margin: 8px 0; text-shadow: 0 0 10px rgba(255,255,255,0.5); font-family: monospace;">
+            {days}d : {hours:02d}h : {minutes:02d}m : {seconds:02d}s
         </div>
         <small style="opacity: 0.7;">3rd Feb 2026, 7:00 AM</small>
     </div>
