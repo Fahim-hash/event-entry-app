@@ -9,17 +9,12 @@ st.set_page_config(page_title="Event Manager Pro", page_icon="🔥", layout="wid
 
 st.markdown("""
     <style>
-    /* Dark Theme Optimization */
     .stApp {background-color: #0e1117;}
-    
-    /* Search Bar Styling */
     input[type="text"] {
         border-radius: 10px !important;
         border: 1px solid #3b3f4a !important;
         padding: 10px !important;
     }
-    
-    /* Metrics Card Styling */
     div[data-testid="stMetric"] {
         background-color: #1e2129;
         padding: 15px;
@@ -27,8 +22,6 @@ st.markdown("""
         border-left: 5px solid #ff4b4b;
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
-    
-    /* Digital ID Card Styling */
     .id-card {
         background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
         padding: 20px;
@@ -54,25 +47,13 @@ st.markdown("""
     }
     .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; text-shadow: 2px 2px 4px #000; }
     .id-info { font-size: 15px; margin: 5px 0; color: #e0e0e0; }
-    
-    /* Badges */
     .tshirt-badge {
-        font-size: 16px; 
-        font-weight: bold; 
-        margin-top: 15px; 
-        padding: 8px; 
-        border-radius: 8px; 
-        background: rgba(0,0,0,0.4);
-        border: 1px solid #fff;
+        font-size: 16px; font-weight: bold; margin-top: 15px; padding: 8px; 
+        border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid #fff;
     }
     .status-badge {
-        margin-top: 10px;
-        font-size: 16px;
-        font-weight: bold;
-        padding: 8px;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid #fff;
+        margin-top: 10px; font-size: 16px; font-weight: bold; padding: 8px; 
+        border-radius: 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid #fff;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -109,6 +90,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==================== 2. DATA ENGINE ====================
+BUS_CAPACITY = 45
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
@@ -118,7 +100,6 @@ def load_data():
         for c in cols:
             if c not in df.columns: df[c] = ''
         
-        # STRING FIXES
         for col in ['Ticket_Number', 'Spot Phone', 'Guardian Phone', 'Roll']:
             df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().replace('nan', 'N/A')
         
@@ -126,7 +107,7 @@ def load_data():
         return df
     except Exception as e:
         st.error(f"Data Load Error: {e}")
-        return pd.DataFrame(columns=['Name', 'Role', 'Ticket_Number', 'Guardian Phone'])
+        return pd.DataFrame(columns=['Name', 'Role', 'Ticket_Number'])
 
 def load_stock():
     try:
@@ -162,13 +143,13 @@ if st.sidebar.button("🔄 Force Refresh Data", type="primary"):
     st.success("Data Refreshed!")
     st.rerun()
 
-menu_opts = ["🏠 Dashboard", "🔍 Search & Manage", "📊 Analytics"]
+menu_opts = ["🏠 Dashboard", "🔍 Search & Manage", "👨‍🏫 Teachers"]
 if st.session_state.user_role == 'admin':
-    menu_opts += ["📦 Stock", "🚌 Bus Fleet", "📥 Export"]
+    menu_opts += ["📊 Analytics", "📦 Stock", "🚌 Bus Fleet", "📥 Export"]
 
 menu = st.sidebar.radio("Menu:", menu_opts)
 
-# ADD PERSON SHORTCUT (ADMIN)
+# ADD PERSON SHORTCUT
 if st.session_state.user_role == 'admin':
     st.sidebar.markdown("---")
     with st.sidebar.expander("➕ Add Person"):
@@ -177,7 +158,7 @@ if st.session_state.user_role == 'admin':
             r = st.selectbox("Role", ["Student", "Volunteer", "Organizer", "Teacher", "Guest"])
             t = st.text_input("Ticket (Mandatory)")
             p = st.text_input("Spot Phone (Mandatory)")
-            gp = st.text_input("Guardian Phone (Optional)")
+            gp = st.text_input("Guardian Phone")
             
             if st.form_submit_button("Add Now"):
                 if n and p and t:
@@ -191,7 +172,7 @@ if st.session_state.user_role == 'admin':
                     save_data()
                     st.success("Added!")
                     st.rerun()
-                else: st.error("Missing Name, Ticket or Phone!")
+                else: st.error("Missing Info!")
 
 if st.sidebar.button("🔴 Logout"):
     st.session_state.logged_in = False
@@ -203,24 +184,68 @@ if st.sidebar.button("🔴 Logout"):
 if menu == "🏠 Dashboard":
     st.title("🚀 Event Control Center")
     df = st.session_state.df
-    
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total People", len(df))
     c2.metric("Checked In", len(df[df['Entry_Status']=='Done']))
     c3.metric("T-Shirts Out", len(df[df['T_Shirt_Collected']=='Yes']))
     c4.metric("Pending", len(df[df['Entry_Status']!='Done']))
-    
     st.progress(len(df[df['Entry_Status']=='Done']) / len(df) if len(df) > 0 else 0)
     
-    st.subheader("📡 Live Feed (Last 5 Entries)")
+    st.subheader("📡 Live Feed")
     recent = df[df['Entry_Status']=='Done'].sort_values('Entry_Time', ascending=False).head(5)
     st.dataframe(recent[['Name', 'Role', 'Entry_Time', 'Bus_Number']], use_container_width=True)
+
+# --- TEACHERS TAB ---
+elif menu == "👨‍🏫 Teachers":
+    st.title("👨‍🏫 Teacher Management")
+    df_t = st.session_state.df[st.session_state.df['Role'] == 'Teacher']
+    col1, col2 = st.columns(2)
+    col1.metric("Total Teachers", len(df_t))
+    col2.metric("Teachers Present", len(df_t[df_t['Entry_Status'] == 'Done']))
+    st.markdown("---")
+    
+    t_list = df_t['Name'].tolist()
+    selected_t = st.selectbox("Select Teacher:", ["Select..."] + t_list)
+    
+    if selected_t != "Select...":
+        idx = st.session_state.df[st.session_state.df['Name'] == selected_t].index[0]
+        row = st.session_state.df.loc[idx]
+        
+        c_stat, c_act = st.columns([1, 2])
+        with c_stat:
+            if row['Entry_Status'] == 'Done': st.success("✅ ALREADY ENTERED")
+            else: st.warning("⏳ NOT ENTERED")
+            st.info(f"Bus: {row['Bus_Number']}")
+
+        with c_act:
+            with st.form("teacher_entry"):
+                check_ent = st.checkbox("✅ Mark Entry", value=(row['Entry_Status']=='Done'))
+                check_tsh = st.checkbox("👕 T-Shirt Given", value=(row['T_Shirt_Collected']=='Yes'))
+                bus_opts = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
+                sel_bus = st.selectbox("Assign Bus", bus_opts, index=bus_opts.index(row['Bus_Number']) if row['Bus_Number'] in bus_opts else 0)
+                
+                if st.form_submit_button("💾 Update"):
+                    st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if check_ent else ''
+                    if check_ent and not row['Entry_Time']:
+                        st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
+                    sz = row['T_Shirt_Size']
+                    if check_tsh and row['T_Shirt_Collected'] == 'No':
+                        st.session_state.stock[sz] -= 1
+                        save_stock()
+                    elif not check_tsh and row['T_Shirt_Collected'] == 'Yes':
+                        st.session_state.stock[sz] += 1
+                        save_stock()
+                    st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if check_tsh else 'No'
+                    st.session_state.df.at[idx, 'Bus_Number'] = sel_bus
+                    save_data()
+                    st.success("Updated!")
+                    st.rerun()
+    st.dataframe(df_t[['Name', 'Spot Phone', 'Entry_Status', 'Bus_Number', 'T_Shirt_Collected']], use_container_width=True)
 
 # --- SEARCH & MANAGE ---
 elif menu == "🔍 Search & Manage":
     st.title("🔍 Search & Digital ID")
-    
-    q = st.text_input("🔎 Search by Ticket / Name / Phone / Guardian Phone:", placeholder="Type anything...").strip()
+    q = st.text_input("🔎 Search by Ticket / Name / Phone:", placeholder="Type anything...").strip()
     
     if q:
         mask = (
@@ -241,26 +266,18 @@ elif menu == "🔍 Search & Manage":
             
             row = st.session_state.df.loc[idx]
             
-            # --- STOCK LOGIC FOR CARD ---
+            # CARD LOGIC
             sz = row['T_Shirt_Size']
-            is_given = row['T_Shirt_Collected'] == 'Yes'
             rem_stock = st.session_state.stock.get(sz, 0)
-            
-            if is_given:
-                t_status = f"👕 {sz} : GIVEN ✅"
-                t_color = "#4ade80" # Green
+            if row['T_Shirt_Collected'] == 'Yes':
+                t_status, t_color = f"👕 {sz} : GIVEN ✅", "#4ade80"
             elif rem_stock > 0:
-                t_status = f"👕 {sz} : IN STOCK ({rem_stock}) 📦"
-                t_color = "#60a5fa" # Blue
+                t_status, t_color = f"👕 {sz} : IN STOCK ({rem_stock}) 📦", "#60a5fa"
             else:
-                t_status = f"👕 {sz} : OUT OF STOCK ❌"
-                t_color = "#f87171" # Red
+                t_status, t_color = f"👕 {sz} : OUT OF STOCK ❌", "#f87171"
 
-            # --- DIGITAL ID CARD UI (FIXED HTML) ---
             col_card, col_action = st.columns([1, 1.5])
-            
             with col_card:
-                # IMPORTANT: No indentation inside the HTML string to avoid code-block rendering
                 st.markdown(f"""
 <div class="id-card">
 <div class="id-role">{row['Role'].upper()}</div>
@@ -275,7 +292,6 @@ elif menu == "🔍 Search & Manage":
 </div>
 """, unsafe_allow_html=True)
 
-            # ACTION PANEL
             with col_action:
                 with st.container(border=True):
                     st.subheader("⚡ Quick Actions")
@@ -283,7 +299,7 @@ elif menu == "🔍 Search & Manage":
                     new_ent = c1.checkbox("✅ Mark Entry", value=(row['Entry_Status']=='Done'), key="ent")
                     new_tsh = c2.checkbox("👕 T-Shirt Given", value=(row['T_Shirt_Collected']=='Yes'), key="tsh")
                     
-                    if st.button("💾 Save Status", type="primary", use_container_width=True):
+                    if st.button("💾 Save Status", type="primary"):
                         st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else ''
                         if new_ent and not row['Entry_Time']:
                             st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
@@ -295,70 +311,55 @@ elif menu == "🔍 Search & Manage":
                             st.session_state.stock[sz] += 1
                             save_stock()
                         st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_tsh else 'No'
-                        
                         save_data()
                         st.success("Updated!")
-                        time.sleep(0.5)
                         st.rerun()
 
-                # SUPER EDIT FORM (ADMIN ONLY)
                 if st.session_state.user_role == 'admin':
-                    with st.expander("📝 Edit Full Profile (Admin)", expanded=False):
+                    with st.expander("📝 Edit Full Profile"):
                         with st.form("super_edit"):
                             c_a, c_b = st.columns(2)
                             e_name = c_a.text_input("Name", row['Name'])
                             e_phone = c_b.text_input("Spot Phone", row['Spot Phone'])
-                            
                             c_c, c_d = st.columns(2)
-                            e_gphone = c_c.text_input("Guardian Phone", row['Guardian Phone'])
-                            e_ticket = c_d.text_input("Ticket No", row['Ticket_Number'])
-                            
+                            e_gp = c_c.text_input("Guardian Phone", row['Guardian Phone'])
+                            e_tick = c_d.text_input("Ticket No", row['Ticket_Number'])
                             c_e, c_f = st.columns(2)
-                            e_roll = c_e.text_input("Roll / ID", row['Roll'])
-                            
+                            e_roll = c_e.text_input("Roll", row['Roll'])
                             roles = ["Student", "Volunteer", "Organizer", "Teacher", "Guest"]
-                            curr_role = row['Role'] if row['Role'] in roles else "Student"
-                            e_role = c_f.selectbox("Role", roles, index=roles.index(curr_role))
-                            
+                            e_role = c_f.selectbox("Role", roles, index=roles.index(row['Role']) if row['Role'] in roles else 0)
                             c_g, c_h = st.columns(2)
                             buses = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-                            curr_bus = row['Bus_Number'] if row['Bus_Number'] in buses else "Unassigned"
-                            e_bus = c_g.selectbox("Bus", buses, index=buses.index(curr_bus))
+                            e_bus = c_g.selectbox("Bus", buses, index=buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0)
+                            e_size = c_h.selectbox("Size", ["S", "M", "L", "XL", "XXL"], index=["S", "M", "L", "XL", "XXL"].index(row['T_Shirt_Size']))
                             
-                            e_size = c_h.selectbox("T-Shirt Size", ["S", "M", "L", "XL", "XXL"], index=["S", "M", "L", "XL", "XXL"].index(row['T_Shirt_Size']))
-                            
-                            if st.form_submit_button("💾 Save All Changes"):
-                                if not e_ticket or not e_phone:
-                                    st.error("Ticket and Spot Phone Required!")
-                                else:
-                                    st.session_state.df.at[idx, 'Name'] = e_name
-                                    st.session_state.df.at[idx, 'Spot Phone'] = str(e_phone)
-                                    st.session_state.df.at[idx, 'Guardian Phone'] = str(e_gphone)
-                                    st.session_state.df.at[idx, 'Ticket_Number'] = str(e_ticket)
-                                    st.session_state.df.at[idx, 'Roll'] = str(e_roll)
-                                    st.session_state.df.at[idx, 'Role'] = e_role
-                                    st.session_state.df.at[idx, 'Bus_Number'] = e_bus
-                                    st.session_state.df.at[idx, 'T_Shirt_Size'] = e_size
-                                    save_data()
-                                    st.success("Profile Updated!")
-                                    st.rerun()
-        else:
-            st.warning("No matches found! Try a different number or name.")
+                            if st.form_submit_button("💾 Save Changes"):
+                                st.session_state.df.at[idx, 'Name'] = e_name
+                                st.session_state.df.at[idx, 'Spot Phone'] = str(e_phone)
+                                st.session_state.df.at[idx, 'Guardian Phone'] = str(e_gp)
+                                st.session_state.df.at[idx, 'Ticket_Number'] = str(e_tick)
+                                st.session_state.df.at[idx, 'Roll'] = str(e_roll)
+                                st.session_state.df.at[idx, 'Role'] = e_role
+                                st.session_state.df.at[idx, 'Bus_Number'] = e_bus
+                                st.session_state.df.at[idx, 'T_Shirt_Size'] = e_size
+                                save_data()
+                                st.success("Updated!")
+                                st.rerun()
+        else: st.warning("No matches found!")
 
 # --- ANALYTICS ---
 elif menu == "📊 Analytics":
-    st.title("📊 Visual Analytics")
+    st.title("📊 Analytics")
     t1, t2 = st.tabs(["🚌 Transport", "👕 Merchandise"])
     with t1: st.bar_chart(st.session_state.df['Bus_Number'].value_counts())
     with t2: st.bar_chart(st.session_state.df['T_Shirt_Size'].value_counts())
 
-# --- STOCK MANAGER ---
+# --- STOCK ---
 elif menu == "📦 Stock":
     st.title("📦 Inventory")
     cols = st.columns(5)
     for s in ["S", "M", "L", "XL", "XXL"]:
-        q = st.session_state.stock.get(s, 0)
-        cols[cols.index(cols[0])+["S", "M", "L", "XL", "XXL"].index(s)].metric(s, q)
+        cols[cols.index(cols[0])+["S", "M", "L", "XL", "XXL"].index(s)].metric(s, st.session_state.stock.get(s, 0))
     with st.form("upd_stk"):
         c1, c2 = st.columns(2)
         sz = c1.selectbox("Size", ["S", "M", "L", "XL", "XXL"])
@@ -370,20 +371,110 @@ elif menu == "📦 Stock":
 
 # --- BUS MANAGER ---
 elif menu == "🚌 Bus Fleet":
-    st.title("🚌 Fleet Manager")
-    c1, c2, c3 = st.columns(3)
+    st.title("🚌 Smart Fleet Manager")
+    cols = st.columns(4)
+    bus_names = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
+    for i, b in enumerate(bus_names):
+        count = len(st.session_state.df[st.session_state.df['Bus_Number'] == b])
+        cols[i].metric(b, f"{count}/{BUS_CAPACITY}", delta=f"{BUS_CAPACITY-count} left", delta_color="normal")
+    
+    st.markdown("---")
+    c1, c2, c3, c4 = st.columns(4)
     grp = c1.selectbox("Role Group", ["Student", "Volunteer", "Teacher"])
-    bus = c2.selectbox("Target Bus", ["Bus 1", "Bus 2", "Bus 3", "Bus 4"])
-    if c3.button("Assign Group", type="primary"):
+    start_bus_idx = c2.selectbox("Start Bus", bus_names)
+    
+    if c3.button("🚀 Smart Assign", type="primary"):
         mask = st.session_state.df['Role'] == grp
-        st.session_state.df.loc[mask, 'Bus_Number'] = bus
+        people_indices = st.session_state.df[mask].index.tolist()
+        curr_bus_idx = bus_names.index(start_bus_idx)
+        for pid in people_indices:
+            curr_bus_name = bus_names[curr_bus_idx]
+            curr_count = len(st.session_state.df[st.session_state.df['Bus_Number'] == curr_bus_name])
+            if curr_count < BUS_CAPACITY:
+                st.session_state.df.at[pid, 'Bus_Number'] = curr_bus_name
+            else:
+                if curr_bus_idx < 3: curr_bus_idx += 1
+                else: break
         save_data()
-        st.success("Bulk Assigned!")
+        st.success("Smart Assigned!")
         st.rerun()
-    st.dataframe(st.session_state.df[['Name', 'Role', 'Bus_Number']])
+
+    if c4.button("❌ Unassign"):
+        mask = st.session_state.df['Role'] == grp
+        st.session_state.df.loc[mask, 'Bus_Number'] = 'Unassigned'
+        save_data()
+        st.warning("Unassigned!")
+        st.rerun()
+
+    tabs = st.tabs(["Unassigned"] + bus_names)
+    with tabs[0]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'].isin(['Unassigned', ''])][['Name', 'Role', 'Class']])
+    for i, b in enumerate(bus_names):
+        with tabs[i+1]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'] == b][['Name', 'Role']])
 
 # --- EXPORT ---
 elif menu == "📥 Export":
-    st.title("📥 Download Data")
-    csv = st.session_state.df.to_csv(index=False).encode('utf-8')
-    st.download_button("Download CSV", csv, "Event_DB.csv", "text/csv")
+    st.title("📥 Export Data")
+    
+    st.markdown("### 📄 Printable Bus Lists")
+    
+    # HTML GENERATION Logic
+    html_content = """
+    <html>
+    <head>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .bus-title { font-size: 30px; font-weight: bold; text-align: center; margin-top: 20px; text-transform: uppercase; border-bottom: 3px solid #000; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #000; padding: 10px; text-align: left; font-size: 14px; }
+        th { background-color: #f2f2f2; }
+        .page-break { page-break-before: always; }
+        .sign-col { width: 150px; }
+    </style>
+    </head>
+    <body>
+    """
+    
+    bus_list = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
+    has_data = False
+    
+    for bus in bus_list:
+        # Filter data for this bus
+        bus_df = st.session_state.df[st.session_state.df['Bus_Number'] == bus].copy()
+        
+        if not bus_df.empty:
+            has_data = True
+            # Add Page Break for buses after the first one
+            if bus != "Bus 1":
+                html_content += '<div class="page-break"></div>'
+            
+            html_content += f'<div class="bus-title">{bus} Manifest</div>'
+            html_content += f'<p>Total Passengers: {len(bus_df)}</p>'
+            html_content += '<table><thead><tr><th>Sl.</th><th>Class</th><th>Name</th><th>Ticket No.</th><th class="sign-col">Signature</th></tr></thead><tbody>'
+            
+            for i, (_, row) in enumerate(bus_df.iterrows(), 1):
+                html_content += f"<tr><td>{i}</td><td>{row['Role']}</td><td>{row['Name']}</td><td>{row['Ticket_Number']}</td><td></td></tr>"
+            
+            html_content += '</tbody></table>'
+    
+    html_content += "</body></html>"
+    
+    c1, c2 = st.columns(2)
+    
+    # Button 1: Printable HTML
+    with c1:
+        st.download_button(
+            label="📄 Download Printable Bus Manifest (PDF Ready)",
+            data=html_content,
+            file_name="Bus_Manifest_Printable.html",
+            mime="text/html",
+            help="Download this file and open in Chrome/Edge. Then press Ctrl+P to save as PDF or Print."
+        )
+    
+    # Button 2: Raw CSV
+    with c2:
+        st.download_button(
+            label="💾 Download Full Database (CSV)",
+            data=st.session_state.df.to_csv(index=False).encode('utf-8'),
+            file_name=f"Event_Data_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
