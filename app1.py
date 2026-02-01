@@ -6,39 +6,84 @@ import time
 import pytz
 import streamlit.components.v1 as components
 
-# ==================== 1. CONFIG & STYLE ====================
-st.set_page_config(page_title="Event OS Pro", page_icon="⚡", layout="wide")
+# ==================== 1. CONFIG & STYLE (THEMED) ====================
+st.set_page_config(page_title="Willian's 26 | Event OS", page_icon="🎆", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117; color: #e0e0e0; }
-    
-    /* Metrics Style */
-    div[data-testid="stMetric"] {
-        background-color: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 15px;
-        border-radius: 10px;
+    /* MAIN BACKGROUND - Pitch Black like the poster */
+    .stApp {
+        background-color: #000000;
+        color: #ffffff;
     }
     
-    /* ID Card Style */
+    /* SIDEBAR - Darker Shade */
+    section[data-testid="stSidebar"] {
+        background-color: #0a0a0a;
+        border-right: 1px solid #333;
+    }
+    
+    /* METRICS BOX - Glassmorphism with Neon Border */
+    div[data-testid="stMetric"] {
+        background-color: rgba(20, 20, 20, 0.8);
+        border: 1px solid #333;
+        border-left: 5px solid #d500f9; /* Neon Purple Accent */
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(213, 0, 249, 0.1);
+    }
+    div[data-testid="stMetricLabel"] { color: #dcdcdc !important; }
+    div[data-testid="stMetricValue"] { color: #ffffff !important; text-shadow: 0 0 5px #d500f9; }
+    
+    /* ID CARD - Neon Gradient Style */
     .id-card {
-        background: linear-gradient(145deg, #1e1e1e, #2a2a2a);
-        border: 1px solid #444;
+        background: linear-gradient(135deg, #2a003b 0%, #0f0c29 100%); /* Dark Purple/Blue */
+        border: 1px solid #d500f9;
         border-radius: 15px;
         padding: 20px;
         text-align: center;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        box-shadow: 0 0 15px rgba(213, 0, 249, 0.3);
         margin-bottom: 20px;
     }
-    .id-name { font-size: 24px; font-weight: bold; color: #fff; margin: 10px 0; }
-    .role-badge { background-color: #FFD700; color: #000; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 12px; }
+    .id-name { font-size: 26px; font-weight: bold; color: #fff; margin: 10px 0; letter-spacing: 1px; }
+    .role-badge { 
+        background: linear-gradient(90deg, #ff00cc, #333399); 
+        color: white; 
+        padding: 5px 15px; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
     
-    /* Input Fields */
-    .stTextInput input {
-        background-color: #262730;
+    /* BUTTONS - Neon Style */
+    .stButton button {
+        background: linear-gradient(90deg, #d500f9, #651fff);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+    .stButton button:hover {
+        background: linear-gradient(90deg, #651fff, #d500f9);
+        box-shadow: 0 0 10px #d500f9;
+        transform: scale(1.02);
+    }
+    
+    /* INPUT FIELDS */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
+        background-color: #111;
         color: white;
         border: 1px solid #444;
+        border-radius: 5px;
+    }
+    
+    /* HEADERS */
+    h1, h2, h3 {
+        color: white !important;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -72,7 +117,7 @@ if 'stock' not in st.session_state: st.session_state.stock = load_stock()
 # ==================== 3. LOGIN ====================
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if not st.session_state.logged_in:
-    st.title("🔐 Admin Login")
+    st.title("🔐 Willian's 26 | Admin")
     c1, c2 = st.columns(2)
     with c1:
         u = st.text_input("Username")
@@ -83,12 +128,13 @@ if not st.session_state.logged_in:
             else: st.error("Wrong Password!")
     st.stop()
 
-# ==================== 4. LIVE TIMER (HH:MM:SS ONLY) ====================
+# ==================== 4. LIVE TIMER (THEMED) ====================
 st.sidebar.title("⚡ Menu")
 
 # Target: Feb 3, 2026 07:00:00 GMT+6
 target_iso = "2026-02-03T07:00:00+06:00"
 
+# 🔥 THEMED TIMER COMPONENT 🔥
 timer_html = f"""
 <!DOCTYPE html>
 <html>
@@ -96,22 +142,23 @@ timer_html = f"""
 <style>
     body {{ margin: 0; font-family: 'Courier New', monospace; background-color: transparent; }}
     .timer-container {{
-        background: linear-gradient(135deg, #000428 0%, #004e92 100%);
+        /* Match the Poster Gradient: Pink/Purple/Blue */
+        background: linear-gradient(135deg, #b200ff 0%, #2d00f7 100%);
         color: white;
-        padding: 15px;
-        border-radius: 12px;
+        padding: 20px;
+        border-radius: 15px;
         text-align: center;
         border: 1px solid rgba(255,255,255,0.2);
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        box-shadow: 0 0 15px rgba(178, 0, 255, 0.4);
     }}
-    .label {{ font-family: sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; color: #00ff88; }}
-    .time {{ font-size: 28px; font-weight: bold; letter-spacing: 1px; color: #fff; }}
-    .sub-labels {{ font-size: 10px; opacity: 0.6; margin-top: 2px; font-family: sans-serif; }}
+    .label {{ font-family: sans-serif; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; color: #fff; opacity: 0.8; }}
+    .time {{ font-size: 26px; font-weight: bold; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.8); }}
+    .sub-labels {{ font-size: 9px; opacity: 0.7; margin-top: 5px; font-family: sans-serif; letter-spacing: 1px; }}
 </style>
 </head>
 <body>
     <div class="timer-container">
-        <div class="label">EVENT COUNTDOWN</div>
+        <div class="label">🚀 TOUR STARTS IN</div>
         <div id="countdown" class="time">-- : -- : --</div>
         <div class="sub-labels">HOURS &nbsp;&nbsp; MIN &nbsp;&nbsp; SEC</div>
     </div>
@@ -129,7 +176,7 @@ function updateTimer() {{
             return;
         }}
 
-        // Calculate Total Hours instead of Days
+        // Total Hours
         const totalHours = Math.floor(diff / (1000 * 60 * 60));
         const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const s = Math.floor((diff % (1000 * 60)) / 1000);
@@ -138,7 +185,6 @@ function updateTimer() {{
         const mm = m < 10 ? "0" + m : m;
         const ss = s < 10 ? "0" + s : s;
 
-        // Format: HH : MM : SS
         document.getElementById("countdown").innerHTML = hh + " : " + mm + " : " + ss;
     }}, 1000);
 }}
@@ -149,7 +195,7 @@ updateTimer();
 """
 
 with st.sidebar:
-    components.html(timer_html, height=130)
+    components.html(timer_html, height=140)
 
 menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 View Lists", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
 
@@ -178,7 +224,9 @@ if menu == "🔍 Search & Entry":
             
             col1, col2 = st.columns([1, 1.5])
             with col1:
+                # Dynamic Border Color
                 border_c = "#00ff88" if is_ent else "#ff4b4b"
+                
                 st.markdown(f"""
                 <div class="id-card" style="border: 2px solid {border_c};">
                     <div style="background:{border_c}; color:black; font-weight:bold; padding:5px; border-radius:5px;">{'✅ CHECKED IN' if is_ent else '⏳ NOT ENTERED'}</div>
@@ -192,7 +240,6 @@ if menu == "🔍 Search & Entry":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # UNASSIGN FIX with Key
                 if row['Bus_Number'] != "Unassigned":
                     if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
                         st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
@@ -297,7 +344,6 @@ elif menu == "🚌 Bus Manager":
         cnt = len(df_b)
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     st.markdown("---")
-    
     with st.expander("🗑️ Bulk Unassign Tools"):
         st.subheader("Option: Empty a Bus")
         target_bus = st.selectbox("Select Bus to Empty:", buses)
@@ -333,27 +379,22 @@ elif menu == "🚌 Bus Manager":
                 else: b_i+=1
         conn.update(worksheet="Data", data=st.session_state.df); st.success(f"Assigned {cnt}!"); st.rerun()
 
-# --- TAB: DASHBOARD (FIXED GROUPING) ---
+# --- TAB: DASHBOARD ---
 elif menu == "📊 Dashboard":
     st.title("📊 Event Stats")
     
     if not st.session_state.df.empty:
         df = st.session_state.df
-        
-        # 🔥 Group 1: Students + Team
         grp1 = ['Student', 'Organizer', 'Volunteer']
         cnt1 = len(df[df['Role'].isin(grp1)])
-
-        # 🔥 Group 2: Teachers + Staff
         grp2 = ['Teacher', 'College Staff', 'Principal', 'College Head']
         cnt2 = len(df[df['Role'].isin(grp2)])
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total Registered", len(df))
-        c2.metric("Students + Team", cnt1, help="Student, Organizer, Volunteer")
-        c3.metric("Faculty & Staff", cnt2, help="Teacher, Staff, Principal, Head")
+        c2.metric("Students + Team", cnt1)
+        c3.metric("Faculty & Staff", cnt2)
         c4.metric("Checked In", len(df[df['Entry_Status']=='Done']))
-        
         st.markdown("### T-Shirt Distribution")
         st.bar_chart(df['T_Shirt_Size'].value_counts())
     else:
