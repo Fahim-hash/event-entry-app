@@ -38,8 +38,7 @@ st.markdown("""
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # Constants
-BUS_CAPACITY = 45
-STUDENT_LIMIT = 43  # 43 Students + 1 Org + 1 Teacher = 45
+BUS_CAPACITY = 45  # Hard Limit for EVERYONE
 
 def load_data():
     try:
@@ -164,25 +163,18 @@ if menu == "🔍 Search & Entry":
                         if not new_phone or new_phone == 'N/A' or not new_ticket or new_ticket == 'N/A':
                             st.error("❌ Phone & Ticket are REQUIRED!")
                         else:
-                            # Bus Limit Check
+                            # Bus Limit Check (Total 45 Mixed)
                             can_assign = True
                             if new_bus != "Unassigned":
+                                # Count existing passengers in that bus (excluding current user)
                                 bus_pax = df[df['Bus_Number'] == new_bus]
                                 bus_pax = bus_pax[bus_pax.index != idx]
                                 total_in_bus = len(bus_pax)
-                                student_in_bus = len(bus_pax[bus_pax['Role'] == 'Student'])
                                 
-                                if new_role == "Student":
-                                    if student_in_bus >= STUDENT_LIMIT:
-                                        st.error(f"⛔ {new_bus} Student Limit Reached (43/45)! Seats Reserved.")
-                                        can_assign = False
-                                    elif total_in_bus >= BUS_CAPACITY:
-                                        st.error(f"⛔ {new_bus} is FULL!")
-                                        can_assign = False
-                                else: # Teachers/Staff
-                                    if total_in_bus >= BUS_CAPACITY:
-                                        st.error(f"⛔ {new_bus} is FULL!")
-                                        can_assign = False
+                                # 🔥 HARD LIMIT 45 🔥
+                                if total_in_bus >= BUS_CAPACITY:
+                                    st.error(f"⛔ {new_bus} is FULL ({total_in_bus}/{BUS_CAPACITY})! Cannot add more.")
+                                    can_assign = False
 
                             if can_assign:
                                 # Stock Update
@@ -215,7 +207,7 @@ if menu == "🔍 Search & Entry":
                                 time.sleep(0.5); st.rerun()
         else: st.warning("No user found!")
 
-# --- TAB 2: ADD STAFF/TEACHER (NEW FEATURE) ---
+# --- TAB 2: ADD STAFF/TEACHER ---
 elif menu == "➕ Add Staff/Teacher":
     st.title("➕ Manually Add Teacher or Staff")
     
@@ -234,32 +226,18 @@ elif menu == "➕ Add Staff/Teacher":
         
         if st.form_submit_button("➕ Add to Database"):
             if name and phone:
-                # Create Manual ID
                 manual_ticket = f"MAN-{int(time.time())}"
-                
                 new_entry = {
-                    'Name': name,
-                    'Role': role,
-                    'Spot Phone': phone,
-                    'Guardian Phone': 'N/A',
-                    'Ticket_Number': manual_ticket,
-                    'Class': class_name,
-                    'Roll': 'N/A',
-                    'Entry_Status': 'N/A',
-                    'Entry_Time': 'N/A',
-                    'Bus_Number': 'Unassigned',
-                    'T_Shirt_Size': 'L', # Default
-                    'T_Shirt_Collected': 'No',
-                    'Notes': 'Manual Entry'
+                    'Name': name, 'Role': role, 'Spot Phone': phone, 'Guardian Phone': 'N/A',
+                    'Ticket_Number': manual_ticket, 'Class': class_name, 'Roll': 'N/A',
+                    'Entry_Status': 'N/A', 'Entry_Time': 'N/A', 'Bus_Number': 'Unassigned',
+                    'T_Shirt_Size': 'L', 'T_Shirt_Collected': 'No', 'Notes': 'Manual Entry'
                 }
-                
                 st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new_entry])], ignore_index=True)
                 conn.update(worksheet="Data", data=st.session_state.df)
-                st.success(f"✅ {name} ({role}) added successfully!")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("❌ Name and Phone are required!")
+                st.success(f"✅ {name} added!")
+                time.sleep(1); st.rerun()
+            else: st.error("Name & Phone Required!")
 
 # --- TAB 3: CLASS LISTS ---
 elif menu == "📜 Class Lists":
@@ -283,9 +261,8 @@ elif menu == "🚌 Bus Manager":
     for i, b in enumerate(buses):
         df_b = st.session_state.df[st.session_state.df['Bus_Number'] == b]
         cnt = len(df_b)
-        stus = len(df_b[df_b['Role'] == 'Student'])
-        cols[i].metric(b, f"{cnt}/45", f"Students: {stus}/43")
-        cols[i].progress(min(cnt/45, 1.0))
+        cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free")
+        cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     
     st.markdown("---")
     st.subheader("📋 Bus Passenger List")
@@ -306,24 +283,20 @@ elif menu == "🚌 Bus Manager":
         indices = st.session_state.df[mask].index.tolist()
         b_idx = buses.index(start_b)
         assigned_cnt = 0
+        
         for pid in indices:
             while b_idx < 4:
                 curr_bus = buses[b_idx]
                 curr_df = st.session_state.df[st.session_state.df['Bus_Number'] == curr_bus]
-                total_load = len(curr_df)
-                stu_load = len(curr_df[curr_df['Role'] == 'Student'])
                 
-                can_fit = False
-                if role == "Student":
-                    if stu_load < STUDENT_LIMIT: can_fit = True
-                else:
-                    if total_load < BUS_CAPACITY: can_fit = True
-                
-                if can_fit:
+                # 🔥 Total 45 Check 🔥
+                if len(curr_df) < BUS_CAPACITY:
                     st.session_state.df.at[pid, 'Bus_Number'] = curr_bus
                     assigned_cnt += 1
                     break
-                else: b_idx += 1
+                else:
+                    b_idx += 1 # Try next bus if full
+        
         conn.update(worksheet="Data", data=st.session_state.df)
         st.success(f"Assigned {assigned_cnt} people!")
         st.rerun()
