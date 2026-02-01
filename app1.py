@@ -78,7 +78,8 @@ if not st.session_state.logged_in:
     st.title("🔐 Event Manager Pro")
     c1, c2 = st.columns([1, 2])
     with c1:
-        st.image("https://cdn-icons-png.flaticon.com/512/9320/9320349.png", width=150)
+        # Just a placeholder image or you can use your logo
+        st.markdown("### 🔐 Access")
     with c2:
         st.text_input("Username", key="username")
         st.text_input("Password", type="password", key="password")
@@ -190,7 +191,7 @@ elif menu == "🔍 Search & ID":
             # --- DIGITAL ID CARD DISPLAY ---
             st.markdown(f"""
             <div class="id-card">
-                <div class="id-role">{row['Role'].upper()}</div>
+                <div class="id-role">{str(row['Role']).upper()}</div>
                 <div class="id-name">{row['Name']}</div>
                 <div class="id-details">🎟 Ticket: <b>{row['Ticket_Number']}</b></div>
                 <div class="id-details">📞 {row['Spot Phone']}</div>
@@ -206,7 +207,7 @@ elif menu == "🔍 Search & ID":
                 st.subheader("⚡ Quick Actions")
                 c1, c2, c3 = st.columns(3)
                 
-                # Checkbox States
+                # Checkbox States (Fixed Indentation Here)
                 is_entered = c1.checkbox("✅ Mark Entry", value=(row['Entry_Status']=='Done'))
                 is_given = c2.checkbox("👕 T-Shirt Given", value=(row['T_Shirt_Collected']=='Yes'))
                 
@@ -238,7 +239,11 @@ elif menu == "🔍 Search & ID":
                     with st.form("edit_full"):
                         en = st.text_input("Name", row['Name'])
                         ep = st.text_input("Phone", row['Spot Phone'])
-                        eb = st.selectbox("Bus", ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"], index=["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"].index(row['Bus_Number']) if row['Bus_Number'] in ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"] else 0)
+                        
+                        bus_opts = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
+                        curr_bus = row['Bus_Number'] if row['Bus_Number'] in bus_opts else "Unassigned"
+                        eb = st.selectbox("Bus", bus_opts, index=bus_opts.index(curr_bus))
+                        
                         if st.form_submit_button("Save Changes"):
                             st.session_state.df.at[idx, 'Name'] = en
                             st.session_state.df.at[idx, 'Spot Phone'] = ep
@@ -309,99 +314,4 @@ elif menu == "📥 Export Data":
         file_name=f"Event_Data_{datetime.now().strftime('%H-%M')}.csv",
         mime='text/csv',
     )
-   
-                # Checkboxes
-                n_given = ct2.checkbox("✅ T-Shirt GIVEN", value=is_given)
-                n_enter = ct3.checkbox("✅ Mark ENTERED", value=(row['Entry_Status']=='Done'))
-                
-                if st.form_submit_button("💾 Update Status"):
-                    if st.session_state.user_role == 'admin':
-                        if not n_phone.strip() or not n_ticket.strip():
-                            st.error("Fields cannot be empty!")
-                            st.stop()
-                        st.session_state.df.at[idx, 'Name'] = n_name
-                        st.session_state.df.at[idx, 'Spot Phone'] = n_phone
-                        st.session_state.df.at[idx, 'Ticket_Number'] = n_ticket
-                        st.session_state.df.at[idx, 'Role'] = n_role  # Save New Role
-                        st.session_state.df.at[idx, 'Bus_Number'] = n_bus
-                        st.session_state.df.at[idx, 'T_Shirt_Size'] = n_size
-                    
-                    # Stock Logic
-                    if n_given and not is_given:
-                        st.session_state.stock[sz] -= 1
-                        save_stock()
-                    elif not n_given and is_given:
-                        st.session_state.stock[sz] += 1
-                        save_stock()
-                    
-                    st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if n_given else 'No'
-                    st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if n_enter else ''
-                    
-                    if n_enter and not row['Entry_Time']:
-                        st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
-                    
-                    save_data()
-                    st.success("Updated Successfully!")
-                    st.rerun()
-        else:
-            st.warning("No record found!")
-
-# --- OPTION 2: STOCK (ADMIN) ---
-elif menu == "👕 T-Shirt Stock":
-    st.title("👕 Stock Management")
-    dist = st.session_state.df[st.session_state.df['T_Shirt_Collected'] == 'Yes']['T_Shirt_Size'].value_counts()
-    cols = st.columns(5)
-    for s in ["S", "M", "L", "XL", "XXL"]:
-        rem = st.session_state.stock.get(s, 0) - dist.get(s, 0)
-        cols[cols.index(cols[0])+["S", "M", "L", "XL", "XXL"].index(s)].metric(s, rem, delta=f"Given: {dist.get(s, 0)}", delta_color="inverse")
     
-    st.markdown("---")
-    with st.form("stk"):
-        c1, c2 = st.columns(2)
-        sz = c1.selectbox("Size", ["S", "M", "L", "XL", "XXL"])
-        q = c2.number_input("New Qty", value=st.session_state.stock.get(sz, 0))
-        if st.form_submit_button("Update"):
-            st.session_state.stock[sz] = q
-            save_stock()
-            st.rerun()
-
-# --- OPTION 3: BUS (ADMIN) ---
-elif menu == "🚌 Bus Distribution":
-    st.title("🚌 Bus Management")
-    cols = st.columns(4)
-    buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-    for i, b in enumerate(buses):
-        c = len(st.session_state.df[st.session_state.df['Bus_Number'] == b])
-        cols[i].metric(b, f"{c}/{BUS_CAPACITY}")
-        if c > BUS_CAPACITY: cols[i].error("OVERFLOW")
-        else: cols[i].progress(min(c/BUS_CAPACITY, 1.0))
-    
-    st.markdown("---")
-    c1, c2, c3, c4 = st.columns(4)
-    t = c1.selectbox("Type", ["Class", "Role"])
-    opts = sorted(st.session_state.df['Class'].unique()) if t=="Class" else ["Teacher", "Volunteer", "Organizer", "Guest", "Student"]
-    g = c2.selectbox("Group", ["Select..."] + list(opts))
-    b = c3.selectbox("Bus", buses)
-    if c4.button("Assign") and g!="Select...":
-        assign_bus_bulk(t, g, b)
-        st.success("Moved!")
-        st.rerun()
-    
-    tabs = st.tabs(["Unassigned"] + buses)
-    with tabs[0]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'].isin(['Unassigned', ''])][['Name', 'Class', 'Role']])
-    for i, b in enumerate(buses):
-        with tabs[i+1]: st.dataframe(st.session_state.df[st.session_state.df['Bus_Number'] == b][['Name', 'Role']])
-
-# --- OPTION 4-6: LISTS (ADMIN) ---
-elif menu == "👨‍🏫 Teachers & Guests":
-    st.dataframe(st.session_state.df[st.session_state.df['Role'].isin(["Teacher", "Guest"])][['Name', 'Role', 'Bus_Number', 'Spot Phone']])
-elif menu == "🎗️ Staff (Vol/Org)":
-    st.dataframe(st.session_state.df[st.session_state.df['Role'].isin(["Volunteer", "Organizer"])][['Name', 'Role', 'Bus_Number']])
-elif menu == "📂 Class Section List":
-    cl = st.selectbox("Class", ["Select"] + sorted(st.session_state.df['Class'].unique()))
-    if cl != "Select": st.dataframe(st.session_state.df[st.session_state.df['Class'] == cl])
-
-elif menu == "📊 Live Status":
-    st.dataframe(st.session_state.df[st.session_state.df['Entry_Status'] == 'Done'][['Name', 'Entry_Time', 'Bus_Number']])
-
-
