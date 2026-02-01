@@ -31,7 +31,7 @@ st.markdown("""
     
     /* Digital ID Card Styling */
     .id-card {
-        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); /* Royal Gradient */
+        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
         padding: 25px;
         border-radius: 15px;
         color: #fff;
@@ -97,25 +97,28 @@ if not st.session_state.logged_in:
         st.button("🚀 Login", on_click=check_login, type="primary", use_container_width=True)
     st.stop()
 
-# ==================== 2. DATA ENGINE (SEARCH FIX) ====================
+# ==================== 2. DATA ENGINE ====================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
     try:
         df = conn.read(worksheet="Data", ttl=0)
-        cols = ['Name', 'Role', 'Spot Phone', 'Ticket_Number', 'Class', 'Roll', 'Entry_Status', 'Entry_Time', 'Bus_Number', 'T_Shirt_Size', 'T_Shirt_Collected', 'Notes']
+        # Added 'Guardian Phone' to columns
+        cols = ['Name', 'Role', 'Spot Phone', 'Guardian Phone', 'Ticket_Number', 'Class', 'Roll', 'Entry_Status', 'Entry_Time', 'Bus_Number', 'T_Shirt_Size', 'T_Shirt_Collected', 'Notes']
         for c in cols:
             if c not in df.columns: df[c] = ''
         
-        # 🔥 CRITICAL SEARCH FIX: FORCE EVERYTHING TO STRING 🔥
+        # 🔥 STRING CONVERSION FIX 🔥
         df['Ticket_Number'] = df['Ticket_Number'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
         df['Spot Phone'] = df['Spot Phone'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        df['Guardian Phone'] = df['Guardian Phone'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
         df['Roll'] = df['Roll'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        
         df = df.fillna('')
         return df
     except Exception as e:
         st.error(f"Data Load Error: {e}")
-        return pd.DataFrame(columns=['Name', 'Role', 'Ticket_Number'])
+        return pd.DataFrame(columns=['Name', 'Role', 'Ticket_Number', 'Guardian Phone'])
 
 def load_stock():
     try:
@@ -164,16 +167,23 @@ if st.session_state.user_role == 'admin':
         with st.form("add_fast"):
             n = st.text_input("Name")
             r = st.selectbox("Role", ["Student", "Volunteer", "Organizer", "Teacher", "Guest"])
-            p = st.text_input("Phone")
-            t = st.text_input("Ticket")
+            t = st.text_input("Ticket (Mandatory)")
+            p = st.text_input("Spot Phone (Mandatory)")
+            gp = st.text_input("Guardian Phone (Optional)")
+            
             if st.form_submit_button("Add Now"):
                 if n and p and t:
-                    new = {'Name': n, 'Role': r, 'Spot Phone': str(p), 'Ticket_Number': str(t), 'Class': 'New', 'Roll': '', 'Entry_Status': '', 'Bus_Number': 'Unassigned', 'T_Shirt_Size': 'L', 'T_Shirt_Collected': 'No', 'Notes': 'Added'}
+                    new = {
+                        'Name': n, 'Role': r, 
+                        'Spot Phone': str(p), 'Guardian Phone': str(gp), 'Ticket_Number': str(t), 
+                        'Class': 'New', 'Roll': '', 'Entry_Status': '', 'Bus_Number': 'Unassigned', 
+                        'T_Shirt_Size': 'L', 'T_Shirt_Collected': 'No', 'Notes': 'Added'
+                    }
                     st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new])], ignore_index=True)
                     save_data()
                     st.success("Added!")
                     st.rerun()
-                else: st.error("Missing Info!")
+                else: st.error("Missing Name, Ticket or Phone!")
 
 if st.sidebar.button("🔴 Logout"):
     st.session_state.logged_in = False
@@ -200,19 +210,20 @@ if menu == "🏠 Dashboard":
     recent = df[df['Entry_Status']=='Done'].sort_values('Entry_Time', ascending=False).head(5)
     st.dataframe(recent[['Name', 'Role', 'Entry_Time', 'Bus_Number']], use_container_width=True)
 
-# --- SEARCH & MANAGE (THE CORE) ---
+# --- SEARCH & MANAGE ---
 elif menu == "🔍 Search & Manage":
     st.title("🔍 Search & Digital ID")
     
     # SEARCH BAR
-    q = st.text_input("🔎 Search by Ticket / Name / Phone / Roll:", placeholder="Type anything...").strip()
+    q = st.text_input("🔎 Search by Ticket / Name / Phone / Guardian Phone:", placeholder="Type anything...").strip()
     
     if q:
-        # Powerful Search Logic (Case Insensitive + String conversion)
+        # Powerful Search Logic (Included Guardian Phone)
         mask = (
             st.session_state.df['Name'].astype(str).str.contains(q, case=False) |
             st.session_state.df['Ticket_Number'].astype(str).str.contains(q, case=False) |
             st.session_state.df['Spot Phone'].astype(str).str.contains(q, case=False) |
+            st.session_state.df['Guardian Phone'].astype(str).str.contains(q, case=False) |
             st.session_state.df['Roll'].astype(str).str.contains(q, case=False)
         )
         res = st.session_state.df[mask]
@@ -237,7 +248,8 @@ elif menu == "🔍 Search & Manage":
                     <div class="id-name">{row['Name']}</div>
                     <div class="id-info">🎟 Ticket: <b>{row['Ticket_Number']}</b></div>
                     <div class="id-info">🆔 Roll: {row['Roll']}</div>
-                    <div class="id-info">📞 {row['Spot Phone']}</div>
+                    <div class="id-info">📞 Spot: {row['Spot Phone']}</div>
+                    <div class="id-info">👨‍👩‍👦 G. Phone: {row['Guardian Phone']}</div>
                     <div class="id-info">🚌 Bus: {row['Bus_Number']}</div>
                     <div class="status-badge" style="color: {'#4ade80' if row['Entry_Status']=='Done' else '#f87171'}; border: 1px solid {'#4ade80' if row['Entry_Status']=='Done' else '#f87171'};">
                         {'✅ CHECKED IN' if row['Entry_Status']=='Done' else '⏳ NOT ENTERED'}
@@ -282,31 +294,35 @@ elif menu == "🔍 Search & Manage":
                         with st.form("super_edit"):
                             c_a, c_b = st.columns(2)
                             e_name = c_a.text_input("Name", row['Name'])
-                            e_phone = c_b.text_input("Phone", row['Spot Phone'])
+                            e_phone = c_b.text_input("Spot Phone", row['Spot Phone'])
                             
                             c_c, c_d = st.columns(2)
-                            e_ticket = c_c.text_input("Ticket No", row['Ticket_Number'])
-                            e_roll = c_d.text_input("Roll / ID", row['Roll'])
+                            e_gphone = c_c.text_input("Guardian Phone", row['Guardian Phone'])
+                            e_ticket = c_d.text_input("Ticket No", row['Ticket_Number'])
                             
                             c_e, c_f = st.columns(2)
+                            e_roll = c_e.text_input("Roll / ID", row['Roll'])
+                            
                             # Role Edit
                             roles = ["Student", "Volunteer", "Organizer", "Teacher", "Guest"]
                             curr_role = row['Role'] if row['Role'] in roles else "Student"
-                            e_role = c_e.selectbox("Role", roles, index=roles.index(curr_role))
+                            e_role = c_f.selectbox("Role", roles, index=roles.index(curr_role))
                             
+                            c_g, c_h = st.columns(2)
                             # Bus Edit
                             buses = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
                             curr_bus = row['Bus_Number'] if row['Bus_Number'] in buses else "Unassigned"
-                            e_bus = c_f.selectbox("Bus", buses, index=buses.index(curr_bus))
+                            e_bus = c_g.selectbox("Bus", buses, index=buses.index(curr_bus))
                             
-                            e_size = st.selectbox("T-Shirt Size", ["S", "M", "L", "XL", "XXL"], index=["S", "M", "L", "XL", "XXL"].index(row['T_Shirt_Size']))
+                            e_size = c_h.selectbox("T-Shirt Size", ["S", "M", "L", "XL", "XXL"], index=["S", "M", "L", "XL", "XXL"].index(row['T_Shirt_Size']))
                             
                             if st.form_submit_button("💾 Save All Changes"):
                                 if not e_ticket or not e_phone:
-                                    st.error("Ticket and Phone cannot be empty!")
+                                    st.error("Ticket and Spot Phone cannot be empty!")
                                 else:
                                     st.session_state.df.at[idx, 'Name'] = e_name
                                     st.session_state.df.at[idx, 'Spot Phone'] = str(e_phone)
+                                    st.session_state.df.at[idx, 'Guardian Phone'] = str(e_gphone)
                                     st.session_state.df.at[idx, 'Ticket_Number'] = str(e_ticket)
                                     st.session_state.df.at[idx, 'Roll'] = str(e_roll)
                                     st.session_state.df.at[idx, 'Role'] = e_role
