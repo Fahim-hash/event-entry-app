@@ -394,96 +394,76 @@ elif menu == "🚫 Absent List":
         html += "</table></body></html>"
         st.download_button("⬇️ PDF Ready", html, "Absent.html", "text/html")
 
-# --- 🚌 BUS MANAGER (TEACHER & STAFF READY) ---
-elif menu == "🚌 Bus Manager":
-    st.title("🚌 Fleet & Personnel Assignment")
-    buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-    
-    # বাস ক্যাপাসিটি রিয়েল-টাইম ডিসপ্লে
-    cols = st.columns(4)
-    for i, b in enumerate(buses):
-        df_b = st.session_state.df[st.session_state.df['Bus_Number'] == b]
-        cnt = len(df_b)
-        cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free")
-        cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
-    
-    st.markdown("---")
-    
-    with st.container(border=True):
-        st.subheader("🚀 Bulk Assignment (Students / Teachers / Staff)")
+st.subheader("🖨️ Print Bus Manifest (Official)")
+    if st.button("📄 Generate PDF Ready List", use_container_width=True):
+        # --- HTML CSS for Official Printing ---
+        html = """
+        <html>
+        <head>
+        <style>
+            @page { size: A4; margin: 10mm; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; background: white; color: black; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #333; padding: 6px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .bus-header { background: #000; color: white; padding: 10px; text-align: center; border-radius: 5px; margin-top: 30px; }
+            .page-break { page-break-after: always; }
+            .summary { font-size: 10px; margin-top: 5px; color: #555; }
+            .sign-col { width: 80px; }
+        </style>
+        </head>
+        <body>
+        """
         
-        # ১. এখানে মোড সুইচ করুন: ক্লাস নাকি রোল?
-        assign_mode = st.radio(
-            "Who do you want to assign right now?", 
-            ["Students (Select Class)", "Staff/Teachers (Select Role)"], 
-            horizontal=True
+        for b in buses:
+            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == b]
+            if not b_df.empty:
+                # Calculate counts
+                s_count = len(b_df[b_df['Role'] != 'College Staff'])
+                staff_count = len(b_df[b_df['Role'] == 'College Staff'])
+                
+                html += f"""
+                <div class="page-break">
+                    <div class="bus-header">
+                        <h2 style="margin:0;">{b} - Official Passenger Manifest</h2>
+                        <div class="summary">Seats Occupied: {s_count}/{BUS_CAPACITY} | Extra Staff: {staff_count} | Total: {len(b_df)}</div>
+                    </div>
+                    <table>
+                        <tr>
+                            <th>SL</th>
+                            <th>Name</th>
+                            <th>Role / Class</th>
+                            <th>Phone</th>
+                            <th class="sign-col">IN SIGN</th>
+                            <th class="sign-col">OUT SIGN</th>
+                        </tr>
+                """
+                
+                for i, (_, r) in enumerate(b_df.iterrows(), 1):
+                    # Class showing only if it's a student
+                    info = r['Class'] if r['Role'] == 'Student' else r['Role']
+                    html += f"""
+                    <tr>
+                        <td>{i}</td>
+                        <td>{r['Name']}</td>
+                        <td>{info}</td>
+                        <td>{r['Spot Phone']}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    """
+                html += "</table></div>"
+        
+        html += "</body></html>"
+        
+        # Download Button
+        st.download_button(
+            label="⬇️ Download Manifest for Printing",
+            data=html,
+            file_name=f"Bus_Manifest_{datetime.now().strftime('%d_%m')}.html",
+            mime="text/html",
+            use_container_width=True
         )
-        
-        c_l, c_r = st.columns(2)
-        
-        if assign_mode == "Students (Select Class)":
-            # শুধুমাত্র ক্লাসের লিস্ট দেখাবে (XII_A, XII_B ইত্যাদি)
-            options = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
-            target_val = c_l.selectbox("Select Target Class", options)
-            filter_col = 'Class'
-        else:
-            # এখানে Teacher, College Staff, Organizer সব রোল দেখাবে
-            # Student রোলটি বাদ দিয়ে বাকি সব রোল ফিল্টার করা হয়েছে
-            all_roles = sorted([r for r in st.session_state.df['Role'].unique() if r not in ['', 'N/A']])
-            staff_roles = [r for r in all_roles if r != "Student"]
-            target_val = c_l.selectbox("Select Role (Teacher/Staff/Organizer)", staff_roles)
-            filter_col = 'Role'
-
-        target_bus = c_r.selectbox("Select Target Bus", buses)
-        
-        # ডাটা ফিল্টার: যাদের এখনো বাস দেওয়া হয়নি (Unassigned)
-        pending_people = st.session_state.df[
-            (st.session_state.df[filter_col] == target_val) & 
-            (st.session_state.df['Bus_Number'] == 'Unassigned')
-        ]
-        
-        current_fill = len(st.session_state.df[st.session_state.df['Bus_Number'] == target_bus])
-        free_space = BUS_CAPACITY - current_fill
-        
-        st.info(f"📊 {target_val} লিস্টে {len(pending_people)} জন বাকি আছেন। {target_bus}-এ খালি সিট আছে {free_space}টি।")
-
-        # ২. অ্যাসাইনমেন্ট লজিক
-        if len(pending_people) == 0:
-            st.warning(f"No unassigned people found for {target_val}.")
-            
-        elif free_space >= len(pending_people):
-            # যদি বাসে সবার জায়গা হয়ে যায়
-            if st.button(f"Assign All {len(pending_people)} {target_val} to {target_bus}", type="primary", use_container_width=True):
-                st.session_state.df.loc[pending_people.index, 'Bus_Number'] = target_bus
-                if safe_update("Data", st.session_state.df):
-                    st.success(f"✅ {target_val} গ্রুপের সবাইকে {target_bus}-এ অ্যাসাইন করা হয়েছে!"); time.sleep(1); st.rerun()
-
-        else:
-            # ⚠️ যদি মানুষ বেশি হয় কিন্তু সিট কম থাকে (স্মার্ট সিলেকশন)
-            st.warning(f"⚠️ সিট কম! আপনার প্রয়োজন {len(pending_people)}টি, কিন্তু খালি আছে মাত্র {free_space}টি।")
-            st.write(f"👇 **তালিকা থেকে পছন্দের {free_space} জনকে {target_bus}-এর জন্য সিলেক্ট করুন:**")
-            
-            # নাম ও ফোন নম্বর দিয়ে চেনার তালিকা
-            people_labels = pending_people.apply(lambda x: f"{x['Name']} ({x['Spot Phone']})", axis=1).tolist()
-            
-            selected_people = st.multiselect(
-                "সিলেক্ট করুন:", 
-                people_labels,
-                max_selections=free_space
-            )
-            
-            if st.button(f"Confirm & Assign Selected ({len(selected_people)})", use_container_width=True):
-                if selected_people:
-                    selected_idxs = []
-                    for label in selected_people:
-                        # লেবেল থেকে ফোন নম্বর দিয়ে ডাটাবেস ইনডেক্স খুঁজে বের করা
-                        phone = label.split('(')[-1].replace(')', '')
-                        idx = pending_people[pending_people['Spot Phone'] == phone].index[0]
-                        selected_idxs.append(idx)
-                    
-                    st.session_state.df.loc[selected_idxs, 'Bus_Number'] = target_bus
-                    if safe_update("Data", st.session_state.df):
-                        st.success(f"✅ {len(selected_people)} জনকে {target_bus}-এ অ্যাসাইন করা হয়েছে!"); time.sleep(1); st.rerun()
     # -------------------------------------------------------------
     # -------------------------------------------------------------
     # -------------------------------------------
