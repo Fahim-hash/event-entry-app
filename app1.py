@@ -405,26 +405,77 @@ elif menu == "🚌 Bus Manager":
         cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     st.markdown("---")
     
-    # --- 🔥 NEW: CLASS WISE BULK ASSIGN 🔥 ---
+    # --- 🔥 UPDATED: CLASS WISE BULK ASSIGN (SMART SELECTOR) 🔥 ---
     with st.container(border=True):
         st.subheader("🚀 Class-wise Bulk Assignment")
+        
+        # 1. Selection Inputs
         c_l, c_r = st.columns(2)
         classes = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
         target_cls = c_l.selectbox("Select Class", classes)
         target_bus = c_r.selectbox("Target Bus", buses)
         
-        pending_students = st.session_state.df[(st.session_state.df['Class'] == target_cls) & (st.session_state.df['Bus_Number'] == 'Unassigned')]
+        # 2. Calculate Data
+        # ওই ক্লাসে কতজন বাকি আছে
+        pending_students = st.session_state.df[
+            (st.session_state.df['Class'] == target_cls) & 
+            (st.session_state.df['Bus_Number'] == 'Unassigned')
+        ]
         
-        if st.button(f"Assign {len(pending_students)} Students from {target_cls} to {target_bus}"):
-            current_bus_count = len(st.session_state.df[st.session_state.df['Bus_Number'] == target_bus])
-            free_space = BUS_CAPACITY - current_bus_count
+        # ওই বাসে কত সিট খালি আছে
+        current_bus_count = len(st.session_state.df[st.session_state.df['Bus_Number'] == target_bus])
+        free_space = BUS_CAPACITY - current_bus_count
+        
+        # 3. Message Display
+        st.info(f"PENDING: {len(pending_students)} students | FREE SEATS: {free_space} in {target_bus}")
+
+        # 4. Logic Handling
+        # যদি বাসে সবার জায়গা হয়ে যায়
+        if free_space >= len(pending_students):
+            if st.button(f"Assign All {len(pending_students)} Students to {target_bus}", type="primary"):
+                if len(pending_students) > 0:
+                    st.session_state.df.loc[pending_students.index, 'Bus_Number'] = target_bus
+                    if safe_update("Data", st.session_state.df):
+                        st.success(f"✅ Assigned all {len(pending_students)} students to {target_bus}!")
+                        time.sleep(1); st.rerun()
+                else:
+                    st.warning("No unassigned students left in this class.")
+
+        # যদি বাসে জায়গা কম থাকে (OVERFLOW SCENARIO)
+        else:
+            st.warning(f"⚠️ Not enough space! Need {len(pending_students)}, but only {free_space} available.")
+            st.write(f"👇 **Select which {free_space} students will go in {target_bus}:**")
             
-            if free_space >= len(pending_students):
-                st.session_state.df.loc[pending_students.index, 'Bus_Number'] = target_bus
-                if safe_update("Data", st.session_state.df):
-                    st.success(f"Successfully Assigned {len(pending_students)} Students!"); time.sleep(1); st.rerun()
-            else:
-                st.error(f"Not enough space! Need {len(pending_students)}, Available {free_space}")
+            # স্টুডেন্ট সিলেক্ট করার জন্য মাল্টি-সিলেকশন বক্স
+            # আমরা নাম এবং ফোন নম্বর দেখাচ্ছি যাতে চিনতে সুবিধা হয়
+            student_options = pending_students.apply(lambda x: f"{x['Name']} ({x['Spot Phone']})", axis=1).tolist()
+            
+            selected_labels = st.multiselect(
+                "Choose Students:", 
+                student_options,
+                max_selections=free_space, # সিটের বেশি সিলেক্ট করা যাবে না
+                help=f"You can select maximum {free_space} students."
+            )
+            
+            if st.button(f"Confirm & Assign Selected {len(selected_labels)} Students"):
+                if len(selected_labels) > 0:
+                    # নামের লেবেল থেকে আসল ইনডেক্স খুঁজে বের করা
+                    selected_indices = []
+                    for label in selected_labels:
+                        # লেবেল থেকে ফোন নম্বর বা ইউনিক কিছু দিয়ে ম্যাচ করা
+                        phone = label.split('(')[-1].replace(')', '')
+                        idx = pending_students[pending_students['Spot Phone'] == phone].index[0]
+                        selected_indices.append(idx)
+                    
+                    # ডাটাবেস আপডেট
+                    st.session_state.df.loc[selected_indices, 'Bus_Number'] = target_bus
+                    
+                    if safe_update("Data", st.session_state.df):
+                        st.success(f"✅ Successfully assigned {len(selected_labels)} students to {target_bus}!")
+                        time.sleep(1); st.rerun()
+                else:
+                    st.error("Please select at least one student.")
+    # -------------------------------------------------------------
     # -------------------------------------------
 
     with st.expander("🗑️ Bulk Unassign Tools"):
