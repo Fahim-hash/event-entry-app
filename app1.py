@@ -1,11 +1,44 @@
-# --- TAB: BUS MANAGER ---
-if menu == "🚌 Bus Manager": # এখানে 'if' ব্যবহার করা হয়েছে যাতে একা চললে এরর না দেয়
+import streamlit as st
+import pandas as pd
+from streamlit_gsheets import GSheetsConnection
+import time
+from datetime import datetime
+
+# ১. কনফিগারেশন
+st.set_page_config(page_title="Event OS Pro", layout="wide")
+
+# ২. কানেকশন এবং ডাটা লোড
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+def safe_update(ws, data):
+    try:
+        conn.update(worksheet=ws, data=data)
+        return True
+    except Exception as e:
+        st.error(f"Error updating: {e}")
+        return False
+
+def load_data():
+    try:
+        df = conn.read(worksheet="Data", ttl=0)
+        return df.fillna("N/A")
+    except:
+        return pd.DataFrame()
+
+if 'df' not in st.session_state:
+    st.session_state.df = load_data()
+
+# ৩. সাইডবার মেনু (এই 'menu' ভেরিয়েবলটি নিচে ব্যবহার করা হয়েছে)
+st.sidebar.title("⚡ Navigation")
+menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "🚌 Bus Manager", "📝 Admin Data"])
+
+# ৪. বাস ম্যানেজার সেকশন (এখানেই আপনার এরর ছিল)
+if menu == "🚌 Bus Manager":
     st.title("🚌 Fleet & Visual Layout")
     
     buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-    BUS_CAPACITY = 45 # বাসের সর্বোচ্চ আসন সংখ্যা
+    BUS_CAPACITY = 45 
     
-    # --- 1. VISUAL BUS LAYOUT ---
     st.subheader("📍 Real-time Occupancy Visual")
     cols = st.columns(4)
     
@@ -15,66 +48,50 @@ if menu == "🚌 Bus Manager": # এখানে 'if' ব্যবহার ক�
         with cols[i]:
             st.metric(b, f"{cnt}/{BUS_CAPACITY}")
             
-            # বাসের ভেতরের গ্রিড ভিউ (Visualisation)
+            # বাসের সিট প্ল্যান ভিজ্যুয়াল
+            # 
             grid_html = ""
             for s in range(BUS_CAPACITY):
                 grid_html += "🔵" if s < cnt else "⚪"
-                if (s+1) % 4 == 0: grid_html += "<br>" # প্রতি ৪ সিট পর পর নতুন সারি
+                if (s+1) % 4 == 0: grid_html += "<br>" 
             
-            st.markdown(f"<div style='font-size:12px; line-height:1.2; font-family:monospace;'>{grid_html}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:12px; line-height:1.2;'>{grid_html}</div>", unsafe_allow_html=True)
             st.progress(min(cnt/BUS_CAPACITY, 1.0))
 
     st.markdown("---")
     
-    # --- 2. RANDOM AUTO ASSIGN ---
-    st.subheader("🎲 Random Lucky Seating (Auto Assign)")
-    st.info("এটি বাসের খালি সিটগুলোতে স্টুডেন্টদের লটারি স্টাইলে (Randomly) বসিয়ে দিবে।")
+    # র‍্যান্ডম অ্যাসাইনমেন্ট
+    st.subheader("🎲 Random Lucky Seating")
+    role_to_assign = st.selectbox("Assign Role", ["Student", "Volunteer", "Teacher"])
     
-    c1, c2 = st.columns(2)
-    role_to_assign = c1.selectbox("Assign which Role?", ["Student", "Volunteer", "Teacher"])
-    
-    if st.button("🚀 Start Random Assignment", type="primary"):
-        # যারা এখনো 'Unassigned' আছে তাদের খুঁজে বের করা
-        unassigned_mask = (st.session_state.df['Role'] == role_to_assign) & (st.session_state.df['Bus_Number'] == 'Unassigned')
-        unassigned_indices = st.session_state.df[unassigned_mask].index.tolist()
+    if st.button("🚀 Start Random Assignment"):
+        unassigned = st.session_state.df[(st.session_state.df['Role'] == role_to_assign) & (st.session_state.df['Bus_Number'] == 'Unassigned')].index.tolist()
         
-        if not unassigned_indices:
-            st.warning(f"No unassigned {role_to_assign} found!")
+        if not unassigned:
+            st.warning("No one left to assign!")
         else:
             import random
-            random.shuffle(unassigned_indices) # ডাটা র‍্যান্ডম বা লটারি করা হলো
+            random.shuffle(unassigned) # লটারি করার জন্য র‍্যান্ডম করা হলো
             
-            total_assigned = 0
+            assigned_count = 0
             for b in buses:
-                # বর্তমানে ওই বাসে কতজন আছে
-                current_bus_count = len(st.session_state.df[st.session_state.df['Bus_Number'] == b])
-                free_seats = BUS_CAPACITY - current_bus_count
-                
-                # যদি সিট খালি থাকে, র‍্যান্ডম মানুষ ঢোকানো শুরু হবে
-                while free_seats > 0 and unassigned_indices:
-                    idx = unassigned_indices.pop()
+                current_count = len(st.session_state.df[st.session_state.df['Bus_Number'] == b])
+                free = BUS_CAPACITY - current_count
+                while free > 0 and unassigned:
+                    idx = unassigned.pop()
                     st.session_state.df.at[idx, 'Bus_Number'] = b
-                    free_seats -= 1
-                    total_assigned += 1
+                    free -= 1
+                    assigned_count += 1
             
-            # ডাটাবেস আপডেট
             if safe_update("Data", st.session_state.df):
-                st.success(f"Successfully assigned {total_assigned} {role_to_assign}s randomly across buses!")
-                time.sleep(1)
+                st.success(f"Assigned {assigned_count} people randomly!")
                 st.rerun()
 
-    # --- 3. PRINT MANIFEST ---
-    st.markdown("---")
-    st.subheader("🖨️ Get Manifest")
-    if st.button("📄 Generate PDF Ready List"):
-        html = "<html><head><style>body{font-family:sans-serif;} table{width:100%; border-collapse:collapse;} th,td{border:1px solid #ddd; padding:8px; text-align:left;} th{background:#f2f2f2;}</style></head><body>"
-        for b in buses:
-            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == b]
-            if not b_df.empty:
-                html += f"<h2>{b} - Passenger List ({len(b_df)})</h2>"
-                html += "<table><tr><th>Name</th><th>Phone</th><th>Class</th></tr>"
-                for _, r in b_df.iterrows():
-                    html += f"<tr><td>{r['Name']}</td><td>{r['Spot Phone']}</td><td>{r['Class']}</td></tr>"
-                html += "</table><br>"
-        html += "</body></html>"
-        st.download_button("⬇️ Download Manifest", html, "Bus_Manifest.html", "text/html")
+# ৫. অন্যান্য মেনু
+elif menu == "🔍 Search & Entry":
+    st.title("🔍 Search")
+    st.write("Search features here...")
+
+elif menu == "📝 Admin Data":
+    st.title("📝 Data View")
+    st.dataframe(st.session_state.df)
