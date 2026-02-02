@@ -394,100 +394,89 @@ elif menu == "🚫 Absent List":
         html += "</table></body></html>"
         st.download_button("⬇️ PDF Ready", html, "Absent.html", "text/html")
 
-# --- TAB: BUS MANAGER ---
+# --- 🔥 UNIVERSAL BULK ASSIGN (TEACHERS & STUDENTS) 🔥 ---
 elif menu == "🚌 Bus Manager":
     st.title("🚌 Fleet Manager")
     buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
+    
+    # Bus Stats Display
     cols = st.columns(4)
     for i, b in enumerate(buses):
         df_b = st.session_state.df[st.session_state.df['Bus_Number'] == b]
         cnt = len(df_b)
-        cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
+        cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free")
+        cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
+    
     st.markdown("---")
     
-# --- 🔥 UPDATED: UNIVERSAL BULK ASSIGN (TEACHERS & STUDENTS) 🔥 ---
     with st.container(border=True):
-        st.subheader("🚀 Bulk Assignment (Students & Teachers)")
+        st.subheader("🚀 Bulk Assignment Engine")
         
-        # 1. Mode Selection (Student or Teacher?)
-        assign_mode = st.radio("Who do you want to assign?", ["Students (By Class)", "Staff/Teachers (By Role)"], horizontal=True)
+        # ১. এখানে সুইচ করুন: ক্লাস নাকি রোল?
+        mode = st.radio("Assignment Mode:", ["By Class (Students)", "By Role (Teachers/Staff)"], horizontal=True)
         
         c_l, c_r = st.columns(2)
         
-        # 2. Dynamic Dropdown based on Mode
-        if assign_mode == "Students (By Class)":
-            # Show only Classes
-            options = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
-            target_group = c_l.selectbox("Select Class", options)
+        if mode == "By Class (Students)":
+            # শুধুমাত্র ক্লাসগুলোর লিস্ট দেখাবে
+            opts = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
+            target_val = c_l.selectbox("Select Class", opts)
             filter_col = 'Class'
         else:
-            # Show Roles (Exclude Students usually, or show all roles)
-            # আমরা এখানে Student বাদে বাকি সব রোল দেখাচ্ছি (যেমন Teacher, Staff)
+            # টিচার, স্টাফ, অর্গানাইজার সবার রোল দেখাবে
             all_roles = sorted([r for r in st.session_state.df['Role'].unique() if r not in ['', 'N/A']])
-            options = [r for r in all_roles if r != "Student"] # Student আলাদা অপশনে আছে তাই বাদ দিলাম
-            if not options: options = ["Teacher", "Staff"] # যদি ডাটা না থাকে
-            target_group = c_l.selectbox("Select Role", options)
+            target_val = c_l.selectbox("Select Staff/Teacher Role", all_roles)
             filter_col = 'Role'
 
-        target_bus = c_r.selectbox("Target Bus", buses)
+        target_bus = c_r.selectbox("Select Target Bus", buses)
         
-        # 3. Calculate Pending People
-        # Filter: Class/Role match AND Bus is Unassigned
-        pending_people = st.session_state.df[
-            (st.session_state.df[filter_col] == target_group) & 
+        # ডাটা ফিল্টার: যাদের এখনো বাস দেওয়া হয়নি
+        pending = st.session_state.df[
+            (st.session_state.df[filter_col] == target_val) & 
             (st.session_state.df['Bus_Number'] == 'Unassigned')
         ]
         
-        # Check Bus Capacity
-        current_bus_count = len(st.session_state.df[st.session_state.df['Bus_Number'] == target_bus])
-        free_space = BUS_CAPACITY - current_bus_count
+        current_fill = len(st.session_state.df[st.session_state.df['Bus_Number'] == target_bus])
+        free_space = BUS_CAPACITY - current_fill
         
-        # 4. Display Status
-        st.info(f"PENDING: {len(pending_people)} people ({target_group}) | FREE SEATS: {free_space} in {target_bus}")
+        st.info(f"Found: {len(pending)} unassigned people | Available Seats in {target_bus}: {free_space}")
 
-        # 5. Assignment Logic
-        if len(pending_people) == 0:
-            st.warning(f"No unassigned {target_group} found.")
+        if len(pending) == 0:
+            st.warning(f"No unassigned people found for {target_val}.")
             
-        elif free_space >= len(pending_people):
-            # সবাইকে বাসে তোলা যাবে
-            if st.button(f"Assign All {len(pending_people)} {target_group} to {target_bus}", type="primary"):
-                st.session_state.df.loc[pending_people.index, 'Bus_Number'] = target_bus
+        elif free_space >= len(pending):
+            # জায়গা থাকলে এক ক্লিকে সবাই চলে যাবে
+            if st.button(f"Assign All {len(pending)} People to {target_bus}", type="primary"):
+                st.session_state.df.loc[pending.index, 'Bus_Number'] = target_bus
                 if safe_update("Data", st.session_state.df):
-                    st.success(f"✅ Assigned all {len(pending_people)} {target_group} to {target_bus}!")
-                    time.sleep(1); st.rerun()
+                    st.success("✅ Bulk Assignment Successful!"); time.sleep(1); st.rerun()
 
         else:
-            # ⚠️ OVERFLOW: মানুষ বেশি, সিট কম (Smart Selector)
-            st.warning(f"⚠️ Not enough space! Need {len(pending_people)}, but only {free_space} available.")
-            st.write(f"👇 **Select which {free_space} people from '{target_group}' will go in {target_bus}:**")
+            # জায়গা কম থাকলে ম্যানুয়াল সিলেকশন উইন্ডো ওপেন হবে
+            st.warning(f"⚠️ Not enough space! Need {len(pending)}, but only {free_space} available.")
+            st.write(f"👇 **Select which {free_space} people will go in {target_bus}:**")
             
-            # নাম এবং ফোন নম্বর সহ লিস্ট তৈরি
-            people_options = pending_people.apply(lambda x: f"{x['Name']} ({x['Spot Phone']})", axis=1).tolist()
+            # নাম ও ফোন নম্বর দিয়ে চেনার উপায়
+            options_labels = pending.apply(lambda x: f"{x['Name']} ({x['Spot Phone']})", axis=1).tolist()
             
-            selected_labels = st.multiselect(
-                "Choose People:", 
-                people_options,
-                max_selections=free_space,
-                help=f"You can select maximum {free_space} people."
+            selected_people = st.multiselect(
+                "Select People:", 
+                options_labels,
+                max_selections=free_space
             )
             
-            if st.button(f"Confirm & Assign Selected {len(selected_labels)}"):
-                if len(selected_labels) > 0:
-                    selected_indices = []
-                    for label in selected_labels:
+            if st.button(f"Confirm & Assign Selected ({len(selected_people)})"):
+                if selected_people:
+                    selected_idxs = []
+                    for label in selected_people:
+                        # ফোন নম্বর দিয়ে ইউনিক ইনডেক্স বের করা
                         phone = label.split('(')[-1].replace(')', '')
-                        # ফোন নম্বর দিয়ে ইউনিক মানুষ খুঁজে বের করা
-                        idx = pending_people[pending_people['Spot Phone'] == phone].index[0]
-                        selected_indices.append(idx)
+                        idx = pending[pending['Spot Phone'] == phone].index[0]
+                        selected_idxs.append(idx)
                     
-                    st.session_state.df.loc[selected_indices, 'Bus_Number'] = target_bus
-                    
+                    st.session_state.df.loc[selected_idxs, 'Bus_Number'] = target_bus
                     if safe_update("Data", st.session_state.df):
-                        st.success(f"✅ Assigned {len(selected_labels)} people to {target_bus}!")
-                        time.sleep(1); st.rerun()
-                else:
-                    st.error("Please select at least one person.")
+                        st.success("✅ Selected people assigned!"); time.sleep(1); st.rerun()
     # -------------------------------------------------------------
     # -------------------------------------------------------------
     # -------------------------------------------
