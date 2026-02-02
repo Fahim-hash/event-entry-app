@@ -415,3 +415,96 @@ elif menu == "📊 Dashboard":
 elif menu == "📝 Admin Data":
     st.title("📝 Full DB"); st.dataframe(st.session_state.df)
     st.download_button("Download CSV", st.session_state.df.to_csv(), "data.csv")
+
+# ==============================================================================
+# 7.1. ULTRA-DETAILED T-SHIRT STOCK CHECKER
+# ==============================================================================
+st.markdown("### 👕 T-Shirt Strategic Inventory Control")
+
+# ডেটা থেকে সাইজ অনুযায়ী হিসাব বের করা
+total_distributed = len(st.session_state.df[st.session_state.df['T_Shirt_Collected'] == 'Yes'])
+st.info(f"Total Kits Distributed: {total_distributed} units")
+
+inventory_grid = st.columns(5)
+sizes = ["S", "M", "L", "XL", "XXL"]
+
+for i, size in enumerate(sizes):
+    with inventory_grid[i]:
+        # ১. স্টক থেকে টোটাল আনা
+        total_ordered = st.session_state.stock.get(size, 0)
+        # ২. আমাদের ডেটাফ্রেম থেকে কতজন এই সাইজ নিয়েছে তা বের করা
+        taken_mask = (st.session_state.df['T_Shirt_Size'] == size) & (st.session_state.df['T_Shirt_Collected'] == 'Yes')
+        units_taken = len(st.session_state.df[taken_mask])
+        # ৩. অবশিষ্ট হিসাব
+        remaining = total_ordered - units_taken
+        
+        # ৪. ভিজ্যুয়াল কার্ড ডিজাইন
+        status_color = "#00ff88" if remaining > 5 else "#ff4b4b"
+        
+        st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.05); border: 1px solid {status_color}; padding: 15px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 12px; color: #aaa;">SIZE</div>
+                <div style="font-size: 24px; font-weight: bold; color: #fff;">{size}</div>
+                <hr style="margin: 10px 0; border: 0.5px solid #333;">
+                <div style="font-size: 10px; color: #00ff88;">TOTAL: {total_ordered}</div>
+                <div style="font-size: 18px; font-weight: bold; color: {status_color};">{remaining} LEFT</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # ৫. প্রগ্রেস বার এবং ওয়ার্নিং
+        if total_ordered > 0:
+            st.progress(max(0, min(remaining / total_ordered, 1.0)))
+        
+        if remaining <= 0:
+            st.error("OUT OF STOCK")
+        elif remaining < 5:
+            st.warning("RE-ORDER SOON")
+
+
+   # ==============================================================================
+# 6.2. CLASS-BASED BULK ASSIGNMENT LOGIC
+# ==============================================================================
+st.markdown("---")
+st.subheader("🎯 Class-wise Fleet Deployment")
+
+with st.expander("🚀 Open Bulk Assignment Console", expanded=True):
+    # ফিল্টার অপশন
+    available_classes = sorted([c for c in st.session_state.df['Class'].unique() if c != 'N/A'])
+    
+    col_x, col_y, col_z = st.columns([2, 2, 1])
+    
+    selected_class = col_x.selectbox("Select Target Class", available_classes)
+    selected_target_bus = col_y.selectbox("Assign to Destination Bus", ["Bus 1", "Bus 2", "Bus 3", "Bus 4"])
+    
+    # বর্তমান অবস্থা ক্যালকুলেশন
+    class_unassigned = st.session_state.df[
+        (st.session_state.df['Class'] == selected_class) & 
+        (st.session_state.df['Bus_Number'] == 'Unassigned')
+    ]
+    
+    bus_current_count = len(st.session_state.df[st.session_state.df['Bus_Number'] == selected_target_bus])
+    seats_left = BUS_CAPACITY - bus_current_count
+    
+    st.write(f"📊 **Status:** {len(class_unassigned)} students from **{selected_class}** are waiting. **{selected_target_bus}** has **{seats_left}** seats left.")
+
+    # এক্সিকিউশন বাটন
+    if col_z.button("EXECUTE BATCH", use_container_width=True, type="primary"):
+        if len(class_unassigned) == 0:
+            st.warning("No unassigned students left in this class.")
+        elif seats_left <= 0:
+            st.error(f"Cannot proceed. {selected_target_bus} is already full!")
+        else:
+            # কতজনকে মুভ করা সম্ভব (বাসের সিট অনুযায়ী)
+            move_limit = min(len(class_unassigned), seats_left)
+            target_indices = class_unassigned.index[:move_limit]
+            
+            # ডেটাফ্রেম আপডেট
+            for idx in target_indices:
+                st.session_state.df.at[idx, 'Bus_Number'] = selected_target_bus
+            
+            # ক্লাউড সিঙ্ক
+            if sync_to_cloud("Data", st.session_state.df):
+                st.balloons()
+                st.success(f"Successfully deployed {move_limit} students from {selected_class} to {selected_target_bus}!")
+                time.sleep(1.5)
+                st.rerun() 
