@@ -6,511 +6,412 @@ import time
 import pytz
 import streamlit.components.v1 as components
 
-# ==============================================================================
-# 1. GLOBAL CONFIGURATION & ULTRA PREMIUM STYLING
-# ==============================================================================
-st.set_page_config(
-    page_title="Event OS Pro | Willian's 26 | Management Suite", 
-    page_icon="🎆", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# ==================== 1. CONFIG & STYLE (THEMED BACKGROUND) ====================
+st.set_page_config(page_title="Event OS Pro", page_icon="🎆", layout="wide")
 
-# --- DETAILED CSS (EVERY STYLE DEFINED EXPLICITLY) ---
 st.markdown("""
     <style>
-    /* 🔥 MAIN APP BACKGROUND 🔥 */
+    /* 🔥 FULL PAGE BACKGROUND WITH FADED DJ THEME 🔥 */
     .stApp {
-        background-color: #000000;
+        background-color: #000000; /* Fallback */
+        
+        /* Dark Overlay (0.85) + DJ Image */
         background-image: 
-            linear-gradient(rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.96)),
+            linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.9)),
             url("https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop");
+            
         background-size: cover;
+        background-position: center;
         background-attachment: fixed;
         color: #ffffff;
     }
     
-    /* SIDEBAR STYLING */
+    /* SIDEBAR - Semi-Transparent Dark */
     section[data-testid="stSidebar"] {
-        background-color: rgba(5, 5, 5, 0.98);
+        background-color: rgba(10, 10, 10, 0.9);
         border-right: 1px solid #333;
-        box-shadow: 5px 0 15px rgba(0,0,0,0.5);
     }
-
-    /* === 🚀 ALL DETAILED CARD CLASSES === */
     
-    /* CARD 1: STUDENT (CYBER BLUE) */
+    /* METRICS BOX - Glassmorphism */
+    div[data-testid="stMetric"] {
+        background-color: rgba(20, 20, 20, 0.7); /* Transparent */
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-left: 5px solid #d500f9;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    div[data-testid="stMetricLabel"] { color: #dcdcdc !important; }
+    div[data-testid="stMetricValue"] { color: #ffffff !important; text-shadow: 0 0 10px #d500f9; }
+    
+    /* === ID CARD STYLES (PREMIUM) === */
+    
+    /* 1. STUDENT (Modern Blue) */
     .card-student {
-        background: rgba(16, 30, 45, 0.7);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(0, 255, 255, 0.3);
-        box-shadow: 0 8px 32px 0 rgba(0, 255, 255, 0.1);
-        border-radius: 20px; 
-        padding: 25px; 
-        text-align: center; 
-        margin-bottom: 25px;
-        transition: transform 0.4s ease, box-shadow 0.4s ease;
+        background: linear-gradient(145deg, rgba(15, 32, 39, 0.9), rgba(44, 83, 100, 0.9));
+        backdrop-filter: blur(5px);
+        border: 1px solid #4ca1af;
+        box-shadow: 0 4px 15px rgba(76, 161, 175, 0.3);
+        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
     }
-    .card-student:hover { transform: translateY(-8px); box-shadow: 0 12px 40px rgba(0, 255, 255, 0.2); }
 
-    /* CARD 2: ORGANIZER (NEON PURPLE) */
-    @keyframes pulse-purple-glow {
-        0% { box-shadow: 0 0 5px rgba(213, 0, 249, 0.4); }
-        50% { box-shadow: 0 0 25px rgba(213, 0, 249, 0.7); }
-        100% { box-shadow: 0 0 5px rgba(213, 0, 249, 0.4); }
-    }
+    /* 2. ORGANIZER (Neon Purple) */
     .card-organizer {
-        background: linear-gradient(135deg, rgba(40, 0, 80, 0.8), rgba(10, 0, 20, 0.9));
-        border: 2px solid #d500f9;
-        border-radius: 20px; 
-        padding: 25px; 
-        text-align: center; 
-        margin-bottom: 25px;
-        animation: pulse-purple-glow 3s infinite;
+        background: linear-gradient(135deg, rgba(58, 0, 136, 0.9), rgba(114, 9, 183, 0.9));
+        border: 2px solid #f72585;
+        box-shadow: 0 0 20px rgba(247, 37, 133, 0.6);
+        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
     }
 
-    /* CARD 3: STAFF/TEACHER (EMERALD) */
+    /* 3. TEACHER / STAFF (Teal) */
     .card-staff {
-        background: linear-gradient(145deg, #002b20, #001a13);
-        border-left: 5px solid #00ff88;
-        border-right: 1px solid #00ff88;
-        border-radius: 20px; 
-        padding: 25px; 
-        text-align: center; 
-        margin-bottom: 25px;
-        box-shadow: 0 10px 20px rgba(0, 255, 136, 0.1);
+        background: linear-gradient(145deg, rgba(17, 153, 142, 0.9), rgba(56, 239, 125, 0.9));
+        border: 2px solid #ffffff;
+        box-shadow: 0 4px 15px rgba(56, 239, 125, 0.4);
+        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
+        color: #000 !important;
+    }
+    .card-staff .id-name, .card-staff .info-row { color: #000 !important; font-weight: bold; }
+
+    /* 4. VOLUNTEER (Orange) */
+    .card-volunteer {
+        background: linear-gradient(145deg, rgba(255, 65, 108, 0.9), rgba(255, 75, 43, 0.9));
+        border: 1px solid #ff9966;
+        box-shadow: 0 4px 15px rgba(255, 75, 43, 0.4);
+        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
     }
 
-    /* CARD 4: ELITE ROYAL (GOLD) */
+    /* 5. ELITE (Gold) */
     .card-elite {
-        background: linear-gradient(160deg, #111 0%, #222 100%);
-        border: 2px solid #ffd700;
-        box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
-        padding: 30px; 
-        text-align: center; 
-        margin-bottom: 25px;
-        position: relative;
-        overflow: hidden;
+        background: radial-gradient(ellipse at center, #FFD700 0%, #B8860B 100%);
+        border: 3px solid #FFF;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 20px;
+        color: #000 !important;
     }
-    .card-elite::before {
-        content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-        background: radial-gradient(circle, rgba(255,215,0,0.1) 0%, transparent 70%);
-    }
-    .card-elite::after {
-        content: "⭐ VIP ACCESS ⭐";
-        position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-        background: #ffd700; color: #000; font-weight: 900; font-size: 10px;
-        padding: 3px 15px; border-radius: 0 0 10px 10px;
-    }
+    .card-elite .id-name, .card-elite .info-row { color: #000 !important; font-weight: bold; }
 
-    /* TEXT COMPONENTS */
-    .id-name { font-size: 32px; font-weight: 800; margin: 15px 0; color: #fff; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-    .role-badge { 
-        display: inline-block; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
-        padding: 5px 20px; border-radius: 50px; font-size: 12px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase;
-    }
-    .info-row { 
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 15px; color: #ddd;
-    }
+    /* COMMON TEXT */
+    .id-name { font-size: 26px; font-weight: bold; margin: 10px 0; color: white; }
+    .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.2); padding: 8px 0; font-size: 14px; }
+    .role-badge { background: rgba(0,0,0,0.6); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; border: 1px solid rgba(255,255,255,0.3); }
     
-    /* INPUT BOX DECORATION */
-    .stTextInput input { border-radius: 10px !important; border: 1px solid #444 !important; background: #111 !important; color: #00ff88 !important; }
-    .stSelectbox div[data-baseweb="select"] { border-radius: 10px !important; background: #111 !important; }
+    /* INPUT FIELDS */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        border: 1px solid #555;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 2. DATA ENGINE: MASTER FUNCTIONS
-# ==============================================================================
+# ==================== 2. DATA ENGINE ====================
 conn = st.connection("gsheets", type=GSheetsConnection)
 BUS_CAPACITY = 45
 
-def get_current_dhaka_time():
-    tz = pytz.timezone('Asia/Dhaka')
-    return datetime.now(tz).strftime("%H:%M:%S")
-
-def sync_to_cloud(worksheet_name, dataframe):
-    """Detailed sync function with error reporting"""
-    try:
-        conn.update(worksheet=worksheet_name, data=dataframe)
-        return True
-    except Exception as e:
-        st.error(f"FATAL ERROR DURING SYNC: {str(e)}")
-        return False
-
-def fetch_master_data():
-    """Load and repair dataframe columns"""
+def load_data():
     try:
         df = conn.read(worksheet="Data", ttl=0)
-        expected = [
-            'Name', 'Role', 'Spot Phone', 'Guardian Phone', 'Ticket_Number', 
-            'Class', 'Roll', 'Entry_Status', 'Entry_Time', 'Bus_Number', 
-            'T_Shirt_Size', 'T_Shirt_Collected', 'Notes'
-        ]
-        for col in expected:
-            if col not in df.columns:
-                df[col] = 'N/A'
-        return df.fillna("N/A").astype(str)
+        req_cols = ['Name', 'Role', 'Spot Phone', 'Guardian Phone', 'Ticket_Number', 'Class', 'Roll', 'Entry_Status', 'Entry_Time', 'Bus_Number', 'T_Shirt_Size', 'T_Shirt_Collected', 'Notes']
+        for c in req_cols:
+            if c not in df.columns: df[c] = ''
+        for col in df.columns:
+            df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).replace(['nan', 'None', ''], 'N/A')
+        return df
     except Exception as e:
-        st.error(f"Data Fetch Failure: {e}")
         return pd.DataFrame()
 
-def fetch_stock_levels():
-    """Retrieve detailed inventory from Stock sheet"""
+def load_stock():
     try:
         df_s = conn.read(worksheet="Stock", ttl=0)
-        inventory = dict(zip(df_s['Size'], df_s['Quantity']))
-        return {s: int(float(inventory.get(s, 0))) for s in ["S", "M", "L", "XL", "XXL"]}
-    except:
-        return {"S":0, "M":0, "L":0, "XL":0, "XXL":0}
+        stock = dict(zip(df_s['Size'], df_s['Quantity']))
+        return {s: int(float(stock.get(s, 0))) for s in ["S", "M", "L", "XL", "XXL"]}
+    except: return {"S":0, "M":0, "L":0, "XL":0, "XXL":0}
 
-# Initialize Sessions
-if 'df' not in st.session_state: st.session_state.df = fetch_master_data()
-if 'stock' not in st.session_state: st.session_state.stock = fetch_stock_levels()
+if 'df' not in st.session_state: st.session_state.df = load_data()
+if 'stock' not in st.session_state: st.session_state.stock = load_stock()
 
-# ==============================================================================
-# 3. AUTHENTICATION SYSTEM
-# ==============================================================================
+# ==================== 3. LOGIN ====================
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-
 if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align:center;'>🔐 SECURE GATEWAY</h1>", unsafe_allow_html=True)
-    with st.container():
-        _, center, _ = st.columns([1,2,1])
-        with center:
-            u_input = st.text_input("Administrator Identity")
-            p_input = st.text_input("Access Key", type="password")
-            if st.button("AUTHENTICATE", use_container_width=True, type="primary"):
-                if u_input == "admin" and p_input == "1234":
-                    st.session_state.logged_in = True
-                    st.toast("Access Granted", icon="✅")
-                    st.rerun()
-                else:
-                    st.error("Access Denied: Invalid Credentials")
+    st.title("🔐 Willian's 26 | Admin")
+    c1, c2 = st.columns(2)
+    with c1:
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        if st.button("Login", type="primary"):
+            if u == "admin" and p == "1234":
+                st.session_state.logged_in = True; st.session_state.user = u; st.rerun()
+            else: st.error("Wrong Password!")
     st.stop()
 
-# ==============================================================================
-# 4. SIDEBAR & NAVIGATION
-# ==============================================================================
-with st.sidebar:
-    st.markdown("<h2 style='color:#00ff88;'>⚡ CONTROL CENTER</h2>", unsafe_allow_html=True)
-    
-    # COUNTDOWN COMPONENT
-    timer_code = """
-    <div style="background: rgba(0,255,136,0.1); border: 1px solid #00ff88; padding: 15px; border-radius: 15px; text-align: center;">
-        <div style="color: #00ff88; font-size: 10px; letter-spacing: 2px;">EVENT GO-LIVE</div>
-        <div style="font-size: 22px; font-weight: 800; color: #fff; margin: 5px 0;">3 FEB 2026</div>
-        <div style="color: #aaa; font-size: 10px;">DHAKA, BANGLADESH</div>
+# ==================== 4. LIVE DIGITAL TIMER ====================
+st.sidebar.title("⚡ Menu")
+target_iso = "2026-02-03T07:00:00+06:00"
+
+timer_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    body {{ margin: 0; font-family: 'Courier New', monospace; background-color: transparent; }}
+    .timer-container {{
+        background: linear-gradient(135deg, #000428 0%, #004e92 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        border: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }}
+    .label {{ font-family: sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; color: #00ff88; }}
+    .time {{ font-size: 28px; font-weight: bold; letter-spacing: 1px; color: #fff; text-shadow: 0 0 10px #00ff88; }}
+    .sub-labels {{ font-size: 10px; opacity: 0.6; margin-top: 2px; font-family: sans-serif; }}
+</style>
+</head>
+<body>
+    <div class="timer-container">
+        <div class="label">EVENT COUNTDOWN</div>
+        <div id="countdown" class="time">-- : -- : --</div>
+        <div class="sub-labels">HOURS &nbsp;&nbsp; MIN &nbsp;&nbsp; SEC</div>
     </div>
-    """
-    components.html(timer_code, height=110)
-    
-    st.markdown("---")
-    nav_choice = st.radio(
-        "SELECT MODULE", 
-        ["🔍 Search & Entry", "➕ Add New Entry", "📜 View Full Lists", "🚫 Absentee Manager", "🚌 Fleet & Class Manager", "📊 Dashboard", "📝 Database Master"],
-        index=0
-    )
-    
-    if st.button("🔄 FORCE REFRESH CLOUD"):
-        st.cache_data.clear()
-        st.session_state.df = fetch_master_data()
-        st.session_state.stock = fetch_stock_levels()
-        st.rerun()
+<script>
+function updateTimer() {{
+    const target = new Date("{target_iso}").getTime();
+    setInterval(function() {{
+        const now = new Date().getTime();
+        const diff = target - now;
+        if (diff < 0) {{ document.getElementById("countdown").innerHTML = "STARTED!"; return; }}
+        const totalHours = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        const hh = totalHours < 10 ? "0" + totalHours : totalHours;
+        const mm = m < 10 ? "0" + m : m;
+        const ss = s < 10 ? "0" + s : s;
+        document.getElementById("countdown").innerHTML = hh + " : " + mm + " : " + ss;
+    }}, 1000);
+}}
+updateTimer();
+</script>
+</body>
+</html>
+"""
+with st.sidebar: components.html(timer_html, height=130)
 
-# ==============================================================================
-# 5. MODULE: SEARCH & DETAILED ENTRY
-# ==============================================================================
-if nav_choice == "🔍 Search & Entry":
-    st.title("🔍 Search & Entry Module")
-    search_query = st.text_input("🔎 Search by Ticket ID, Full Name, or Phone Number:").strip()
-    
-    if search_query:
-        master_df = st.session_state.df
-        match_mask = (
-            master_df['Name'].str.contains(search_query, case=False) | 
-            master_df['Ticket_Number'].str.contains(search_query, case=False) | 
-            master_df['Spot Phone'].str.contains(search_query, case=False)
-        )
-        results = master_df[match_mask]
+menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 View Lists", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
+
+if st.sidebar.button("🔄 Refresh Data"):
+    st.cache_data.clear(); st.session_state.df = load_data(); st.session_state.stock = load_stock(); st.rerun()
+
+# --- TAB: SEARCH & ENTRY ---
+if menu == "🔍 Search & Entry":
+    st.title("🔍 Search & Entry")
+    q = st.text_input("🔎 Search by Ticket / Name / Phone:").strip()
+    if q:
+        df = st.session_state.df
+        mask = df['Name'].str.contains(q, case=False, regex=False) | \
+               df['Ticket_Number'].str.contains(q, case=False, regex=False) | \
+               df['Spot Phone'].str.contains(q, case=False, regex=False)
+        res = df[mask]
         
-        if not results.empty:
-            target_idx = results.index[0]
-            p_data = master_df.loc[target_idx]
+        if not res.empty:
+            idx = res.index[0]
+            row = df.loc[idx]
             
-            # --- DETAILED CARD LOGIC ---
-            role_type = p_data['Role']
-            if role_type in ["Principal", "College Head"]: css_card = "card-elite"
-            elif role_type == "Organizer": css_card = "card-organizer"
-            elif role_type in ["Teacher", "Staff", "College Staff"]: css_card = "card-staff"
-            else: css_card = "card-student"
+            # Card Style Logic
+            role = row['Role']
+            if role in ["Principal", "College Head"]: card_class = "card-elite"
+            elif role == "Organizer": card_class = "card-organizer"
+            elif role in ["Teacher", "College Staff"]: card_class = "card-staff"
+            elif role == "Volunteer": card_class = "card-volunteer"
+            else: card_class = "card-student"
 
-            # LAYOUT: CARD | EDITOR
-            view_col, edit_col = st.columns([1, 1.6])
+            is_ent = row['Entry_Status'] == 'Done'
+            is_kit = row['T_Shirt_Collected'] == 'Yes'
+            sz = row['T_Shirt_Size']
+            rem = st.session_state.stock.get(sz, 0)
             
-            with view_col:
-                is_checked = p_data['Entry_Status'] == 'Done'
+            col1, col2 = st.columns([1, 1.5])
+            with col1:
+                status_color = "#00ff88" if is_ent else "#ff4b4b"
                 st.markdown(f"""
-                <div class="{css_card}">
-                    <div class="role-badge">{role_type}</div>
-                    <div class="id-name">{p_data['Name']}</div>
-                    <div class="info-row"><span>Ticket No</span><span style="color:#00ff88; font-weight:bold;">{p_data['Ticket_Number']}</span></div>
-                    <div class="info-row"><span>Class / Roll</span><span>{p_data['Class']} / {p_data['Roll']}</span></div>
-                    <div class="info-row"><span>Bus Assigned</span><span>{p_data['Bus_Number']}</span></div>
-                    <div class="info-row"><span>T-Shirt Size</span><span>{p_data['T_Shirt_Size']}</span></div>
-                    <div style="margin-top:20px; font-size:20px; font-weight:bold; color:{'#00ff88' if is_checked else '#ff4b4b'};">
-                        {'✅ STATUS: ENTERED' if is_checked else '⏳ STATUS: PENDING'}
+                <div class="{card_class}">
+                    <div style="background:{status_color}; color:black; font-weight:bold; padding:5px; border-radius:5px; margin-bottom:10px;">
+                        {'✅ CHECKED IN' if is_ent else '⏳ NOT ENTERED'}
+                    </div>
+                    <span class="role-badge">{row['Role']}</span>
+                    <div class="id-name">{row['Name']}</div>
+                    <div class="info-row"><span>Ticket:</span> <b>{row['Ticket_Number']}</b></div>
+                    <div class="info-row"><span>Bus:</span> <b>{row['Bus_Number']}</b></div>
+                    <div style="margin-top:10px; border:1px solid rgba(255,255,255,0.3); padding:8px; border-radius:8px;">
+                        👕 Size: <b>{sz}</b> | Status: {'✅ GIVEN' if is_kit else f'📦 {rem} Left'}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # QUICK ACTIONS
-                st.subheader("⚡ Quick Actions")
-                if not is_checked:
-                    if st.button("🚀 INSTANT CHECK-IN", type="primary", use_container_width=True):
-                        st.session_state.df.at[target_idx, 'Entry_Status'] = 'Done'
-                        st.session_state.df.at[target_idx, 'Entry_Time'] = get_current_dhaka_time()
-                        if sync_to_cloud("Data", st.session_state.df):
-                            st.success(f"{p_data['Name']} Entered!"); time.sleep(0.5); st.rerun()
+                if row['Bus_Number'] != "Unassigned":
+                    if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
+                        st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
+                        conn.update(worksheet="Data", data=st.session_state.df)
+                        st.success(f"Removed from {row['Bus_Number']}!"); time.sleep(0.5); st.rerun()
 
-            with edit_col:
+            with col2:
                 with st.container(border=True):
-                    st.subheader("✏️ Master Editor")
-                    
-                    # BLOCK 1: PERSONAL
-                    ed_name = st.text_input("Edit Full Name", p_data['Name'])
-                    c1, c2 = st.columns(2)
-                    ed_phone = c1.text_input("Spot Phone", p_data['Spot Phone'])
-                    ed_guardian = c2.text_input("Guardian Phone", p_data['Guardian Phone'])
-                    
-                    # BLOCK 2: ROLE & ACADEMIC
-                    c3, c4, c5 = st.columns(3)
-                    role_list = ["Student", "Volunteer", "Teacher", "Staff", "Organizer", "Principal"]
-                    ed_role = c3.selectbox("Assign Role", role_list, index=role_list.index(role_type) if role_type in role_list else 0)
-                    ed_class = c4.text_input("Class", p_data['Class'])
-                    ed_roll = c5.text_input("Roll", p_data['Roll'])
-                    
-                    # BLOCK 3: LOGISTICS
+                    st.subheader("✏️ Update Details")
+                    c_n, c_r = st.columns([1.5, 1])
+                    new_name = c_n.text_input("Name", row['Name'])
+                    role_opts = ["Student", "Volunteer", "Teacher", "College Staff", "Organizer", "Principal", "College Head"]
+                    new_role = c_r.selectbox("Role", role_opts, index=role_opts.index(row['Role']) if row['Role'] in role_opts else 0)
+                    c_p, c_t = st.columns(2)
+                    new_phone = c_p.text_input("Phone", row['Spot Phone'])
+                    new_ticket = c_t.text_input("Ticket", row['Ticket_Number'])
+                    new_size = st.selectbox("Size", ["S", "M", "L", "XL", "XXL"], index=["S", "M", "L", "XL", "XXL"].index(sz) if sz in ["S", "M", "L", "XL", "XXL"] else 2)
                     st.markdown("---")
-                    c6, c7 = st.columns(2)
-                    size_list = ["S", "M", "L", "XL", "XXL"]
-                    ed_size = c6.selectbox("T-Shirt Size", size_list, index=size_list.index(p_data['T_Shirt_Size']) if p_data['T_Shirt_Size'] in size_list else 2)
-                    bus_list = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-                    ed_bus = c7.selectbox("Assign Bus", bus_list, index=bus_list.index(p_data['Bus_Number']) if p_data['Bus_Number'] in bus_list else 0)
+                    c_a, c_b = st.columns(2)
+                    new_ent = c_a.toggle("✅ Entry", is_ent)
+                    new_kit = c_b.toggle("👕 Kit", is_kit)
+                    buses = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
+                    new_bus = st.selectbox("🚌 Bus", buses, index=buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0)
                     
-                    # BLOCK 4: TOGGLES
-                    c8, c9 = st.columns(2)
-                    ed_ent = c8.toggle("Entry Done", p_data['Entry_Status'] == 'Done')
-                    ed_kit = c9.toggle("T-Shirt Collected", p_data['T_Shirt_Collected'] == 'Yes')
-                    
-                    if st.button("💾 SAVE MASTER DATA", use_container_width=True, type="primary"):
-                        # Logic for Stock Management
-                        old_kit = p_data['T_Shirt_Collected'] == 'Yes'
-                        old_size = p_data['T_Shirt_Size']
-                        
-                        # Apply Updates
-                        st.session_state.df.at[target_idx, 'Name'] = ed_name
-                        st.session_state.df.at[target_idx, 'Spot Phone'] = ed_phone
-                        st.session_state.df.at[target_idx, 'Guardian Phone'] = ed_guardian
-                        st.session_state.df.at[target_idx, 'Role'] = ed_role
-                        st.session_state.df.at[target_idx, 'Class'] = ed_class
-                        st.session_state.df.at[target_idx, 'Roll'] = ed_roll
-                        st.session_state.df.at[target_idx, 'T_Shirt_Size'] = ed_size
-                        st.session_state.df.at[target_idx, 'Bus_Number'] = ed_bus
-                        st.session_state.df.at[target_idx, 'Entry_Status'] = 'Done' if ed_ent else 'N/A'
-                        st.session_state.df.at[target_idx, 'T_Shirt_Collected'] = 'Yes' if ed_kit else 'No'
-                        
-                        if ed_ent and p_data['Entry_Time'] == 'N/A':
-                            st.session_state.df.at[target_idx, 'Entry_Time'] = get_current_dhaka_time()
-                        
-                        if sync_to_cloud("Data", st.session_state.df):
-                            st.success("DATABASE UPDATED!"); time.sleep(0.5); st.rerun()
-        else:
-            st.warning("No record found matching your query.")
+                    if st.button("💾 Save Changes", type="primary"):
+                        if not new_phone or new_phone=='N/A': st.error("Phone Required!")
+                        else:
+                            can_assign = True
+                            if new_bus != "Unassigned" and new_bus != row['Bus_Number']:
+                                if len(df[df['Bus_Number'] == new_bus]) >= BUS_CAPACITY: st.error("Bus Full!"); can_assign = False
+                            if can_assign:
+                                if new_kit:
+                                    if is_kit and sz != new_size: st.session_state.stock[sz]+=1; st.session_state.stock[new_size]-=1
+                                    elif not is_kit: st.session_state.stock[new_size]-=1
+                                elif not new_kit and is_kit: st.session_state.stock[sz]+=1
+                                st.session_state.df.at[idx, 'Name'] = new_name
+                                st.session_state.df.at[idx, 'Role'] = new_role
+                                st.session_state.df.at[idx, 'Spot Phone'] = new_phone
+                                st.session_state.df.at[idx, 'Ticket_Number'] = new_ticket
+                                st.session_state.df.at[idx, 'T_Shirt_Size'] = new_size
+                                st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else 'N/A'
+                                st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
+                                st.session_state.df.at[idx, 'Bus_Number'] = new_bus
+                                if new_ent and row['Entry_Time'] == 'N/A': st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
+                                conn.update(worksheet="Data", data=st.session_state.df)
+                                s_d = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
+                                conn.update(worksheet="Stock", data=pd.DataFrame(s_d))
+                                st.success("Updated!"); time.sleep(0.5); st.rerun()
+        else: st.warning("Not Found")
 
-# ==============================================================================
-# 6. MODULE: BUS FLEET & CLASS MANAGER (DETAILED)
-# ==============================================================================
-elif nav_choice == "🚌 Fleet & Class Manager":
-    st.title("🚌 Advanced Fleet Management")
-    
+# --- TAB: ADD STAFF ---
+elif menu == "➕ Add Staff/Teacher":
+    st.title("➕ Add Manual Entry")
+    with st.form("add"):
+        c1, c2 = st.columns(2); name = c1.text_input("Name"); ph = c2.text_input("Phone")
+        c3, c4 = st.columns(2); role = c3.selectbox("Role", ["Teacher", "College Staff", "Guest", "Volunteer", "Principal", "College Head"]); cls = c4.text_input("Class", "N/A")
+        if st.form_submit_button("Add"):
+            if name and ph:
+                new = {'Name':name, 'Role':role, 'Spot Phone':ph, 'Ticket_Number':f"MAN-{int(time.time())}", 'Class':cls, 'Roll':'N/A', 'Entry_Status':'N/A', 'Entry_Time':'N/A', 'Bus_Number':'Unassigned', 'T_Shirt_Size':'L', 'T_Shirt_Collected':'No', 'Notes':'Manual'}
+                st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new])], ignore_index=True)
+                conn.update(worksheet="Data", data=st.session_state.df); st.success("Added!"); time.sleep(1); st.rerun()
+
+# --- TAB: VIEW LISTS ---
+elif menu == "📜 View Lists":
+    st.title("📜 View Lists")
+    filter_type = st.radio("Filter By:", ["Class", "Role"], horizontal=True)
+    view_df = pd.DataFrame()
+    if filter_type == "Class":
+        cls_list = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
+        sel = st.selectbox("Select Class", ["All"] + cls_list)
+        view_df = st.session_state.df if sel == "All" else st.session_state.df[st.session_state.df['Class'] == sel]
+    else:
+        role_list = sorted([r for r in st.session_state.df['Role'].unique() if r not in ['', 'N/A']])
+        sel_role = st.selectbox("Select Role", ["All"] + role_list)
+        view_df = st.session_state.df if sel_role == "All" else st.session_state.df[st.session_state.df['Role'] == sel_role]
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total", len(view_df)); c2.metric("Checked In", len(view_df[view_df['Entry_Status']=='Done'])); c3.metric("Pending", len(view_df)-len(view_df[view_df['Entry_Status']=='Done']))
+    st.dataframe(view_df[['Name', 'Role', 'Class', 'Spot Phone', 'Entry_Status']], use_container_width=True)
+
+# --- TAB: ABSENT LIST ---
+elif menu == "🚫 Absent List":
+    st.title("🚫 Absentee Manager")
+    abs_df = st.session_state.df[st.session_state.df['Entry_Status'] != 'Done']
+    c1, c2 = st.columns(2); c1.metric("Total Absent", len(abs_df)); c2.metric("Registered", len(st.session_state.df))
+    cls_list = sorted([c for c in abs_df['Class'].unique() if c not in ['', 'N/A']])
+    sel = st.selectbox("Filter Class", ["All"] + cls_list)
+    v_abs = abs_df if sel == "All" else abs_df[abs_df['Class'] == sel]
+    st.dataframe(v_abs[['Name', 'Class', 'Role', 'Spot Phone']], use_container_width=True)
+    if st.button("🖨️ Print Absent List"):
+        html = f"<html><body><h1>Absent List - {sel}</h1><table><tr><th>Name</th><th>Class</th><th>Phone</th></tr>"
+        for _, r in v_abs.iterrows(): html += f"<tr><td>{r['Name']}</td><td>{r['Class']}</td><td>{r['Spot Phone']}</td></tr>"
+        html += "</table></body></html>"
+        st.download_button("⬇️ PDF Ready", html, "Absent.html", "text/html")
+
+# --- TAB: BUS MANAGER ---
+elif menu == "🚌 Bus Manager":
+    st.title("🚌 Fleet Manager")
     buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-    
-    # --- VISUAL LOAD MONITOR ---
-    st.subheader("📊 Real-time Bus Occupancy")
-    monitor_cols = st.columns(4)
-    for i, b_name in enumerate(buses):
-        b_filter = st.session_state.df[st.session_state.df['Bus_Number'] == b_name]
-        b_count = len(b_filter)
-        percent = min(b_count / BUS_CAPACITY, 1.0)
-        
-        with monitor_cols[i]:
-            st.metric(b_name, f"{b_count}/{BUS_CAPACITY}", f"{BUS_CAPACITY - b_count} Available")
-            st.progress(percent)
-            if b_count >= BUS_CAPACITY:
-                st.error("FULL")
-            elif b_count >= 40:
-                st.warning("ALMOST FULL")
-            else:
-                st.success("SPACE AVAILABLE")
-
-    # --- 🎯 CLASS-WISE BULK ASSIGNMENT SYSTEM ---
+    cols = st.columns(4)
+    for i, b in enumerate(buses):
+        df_b = st.session_state.df[st.session_state.df['Bus_Number'] == b]
+        cnt = len(df_b)
+        cols[i].metric(b, f"{cnt}/{BUS_CAPACITY}", f"{BUS_CAPACITY-cnt} Free"); cols[i].progress(min(cnt/BUS_CAPACITY, 1.0))
     st.markdown("---")
-    st.subheader("🎯 Class-wise Bulk Assignment")
-    st.info("Select a class and assign all unassigned students to a specific bus.")
     
-    c_list = sorted([c for c in st.session_state.df['Class'].unique() if c != 'N/A'])
+    with st.expander("🗑️ Bulk Unassign Tools"):
+        st.subheader("Option: Empty a Bus")
+        target_bus = st.selectbox("Select Bus to Empty:", buses)
+        if st.button(f"🗑️ Empty {target_bus}"): 
+             mask = st.session_state.df['Bus_Number'] == target_bus
+             if mask.sum() > 0:
+                 st.session_state.df.loc[mask, 'Bus_Number']='Unassigned'
+                 conn.update(worksheet="Data", data=st.session_state.df)
+                 st.success(f"Emptied {target_bus}!"); time.sleep(1); st.rerun()
+             else: st.warning("Bus is already empty.")
+
+    st.subheader("🖨️ Print Manifest")
+    if st.button("📄 Generate PDF Ready"):
+        html = "<html><head><style>@page{size:A4;margin:10mm;} body{font-family:Arial;font-size:12px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid black;padding:5px;} .page{page-break-after:always;}</style></head><body>"
+        for b in buses:
+            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == b]
+            if not b_df.empty:
+                html += f"<div class='page'><h1>{b} List ({len(b_df)})</h1><table><tr><th>SL</th><th>Name</th><th>Role</th><th>Phone</th><th>Sign</th></tr>"
+                for i, (_, r) in enumerate(b_df.iterrows(), 1): html += f"<tr><td>{i}</td><td>{r['Name']}</td><td>{r['Role']}</td><td>{r['Spot Phone']}</td><td></td></tr>"
+                html += "</table></div>"
+        html += "</body></html>"
+        st.download_button("⬇️ Download", html, "Manifest.html", "text/html")
+
+    st.subheader("🚀 Auto Assign")
+    c1, c2 = st.columns(2); role = c1.selectbox("Role", ["Student", "Volunteer", "Teacher"]); start = c2.selectbox("Start", buses)
+    if st.button("Assign"):
+        mask = st.session_state.df['Role'] == role; idxs = st.session_state.df[mask].index
+        b_i = buses.index(start); cnt=0
+        for i in idxs:
+            while b_i<4:
+                if len(st.session_state.df[st.session_state.df['Bus_Number']==buses[b_i]]) < BUS_CAPACITY:
+                    st.session_state.df.at[i, 'Bus_Number'] = buses[b_i]; cnt+=1; break
+                else: b_i+=1
+        conn.update(worksheet="Data", data=st.session_state.df); st.success(f"Assigned {cnt}!"); st.rerun()
+
+# --- TAB: DASHBOARD ---
+elif menu == "📊 Dashboard":
+    st.title("📊 Event Stats")
     
-    col_a, col_b, col_c = st.columns(3)
-    target_class = col_a.selectbox("Choose Target Class", c_list)
-    target_bus_name = col_b.selectbox("Select Target Bus", buses)
-    
-    # Calculate potential moves
-    unassigned_in_class = st.session_state.df[(st.session_state.df['Class'] == target_class) & (st.session_state.df['Bus_Number'] == 'Unassigned')]
-    can_move = len(unassigned_in_class)
-    
-    if col_c.button(f"MOVE {can_move} STUDENTS", use_container_width=True):
-        current_bus_fill = len(st.session_state.df[st.session_state.df['Bus_Number'] == target_bus_name])
-        available_seats = BUS_CAPACITY - current_bus_fill
+    if not st.session_state.df.empty:
+        df = st.session_state.df
+        grp1 = ['Student', 'Organizer', 'Volunteer']
+        cnt1 = len(df[df['Role'].isin(grp1)])
+        grp2 = ['Teacher', 'College Staff', 'Principal', 'College Head']
+        cnt2 = len(df[df['Role'].isin(grp2)])
         
-        if can_move == 0:
-            st.warning("All students in this class are already assigned.")
-        elif available_seats <= 0:
-            st.error("Target bus has no seats left!")
-        else:
-            to_move = min(can_move, available_seats)
-            indices_to_update = unassigned_in_class.index[:to_move]
-            
-            for idx in indices_to_update:
-                st.session_state.df.at[idx, 'Bus_Number'] = target_bus_name
-            
-            if sync_to_cloud("Data", st.session_state.df):
-                st.success(f"Moved {to_move} students from {target_class} to {target_bus_name}")
-                st.rerun()
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total Registered", len(df))
+        c2.metric("Students + Team", cnt1)
+        c3.metric("Faculty & Staff", cnt2)
+        c4.metric("Checked In", len(df[df['Entry_Status']=='Done']))
+        st.markdown("### T-Shirt Distribution")
+        st.bar_chart(df['T_Shirt_Size'].value_counts())
+    else:
+        st.warning("⚠️ No data available.")
 
-    # --- 🖨️ PRINT-READY MANIFEST SYSTEM ---
-    st.markdown("---")
-    st.subheader("🖨️ Generate Professional Bus Manifest")
-    if st.button("📄 Prepare Manifest for Printing (A4 Format)"):
-        html_doc = """
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                .page { page-break-after: always; border: 2px solid #333; padding: 20px; margin-bottom: 20px; }
-                h1 { text-align: center; color: #000; text-decoration: underline; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #000; padding: 10px; text-align: left; font-size: 12px; }
-                th { background-color: #f2f2f2; }
-                .footer { margin-top: 30px; font-size: 10px; text-align: right; }
-            </style>
-        </head>
-        <body>
-        """
-        for b_name in buses:
-            passengers = st.session_state.df[st.session_state.df['Bus_Number'] == b_name].sort_values(by='Name')
-            if not passengers.empty:
-                html_doc += f"<div class='page'><h1>{b_name} Manifest</h1>"
-                html_doc += f"<p>Total Passengers: {len(passengers)} | Capacity: {BUS_CAPACITY}</p>"
-                html_doc += "<table><thead><tr><th>SL</th><th>Passenger Name</th><th>Class/Roll</th><th>Phone</th><th>Signature</th></tr></thead><tbody>"
-                for i, (_, p_row) in enumerate(passengers.iterrows(), 1):
-                    html_doc += f"<tr><td>{i}</td><td>{p_row['Name']}</td><td>{p_row['Class']} / {p_row['Roll']}</td><td>{p_row['Spot Phone']}</td><td></td></tr>"
-                html_doc += "</tbody></table><div class='footer'>Generated by Event OS Pro - Willian's 26</div></div>"
-        
-        html_doc += "</body></html>"
-        st.download_button("⬇️ DOWNLOAD PRINT-READY MANIFEST", html_doc, "Bus_Manifest_Pro.html", "text/html", use_container_width=True)
-
-# ==============================================================================
-# 7. MODULE: DASHBOARD & STOCK TRACKER (DETAILED)
-# ==============================================================================
-elif nav_choice == "📊 Dashboard":
-    st.title("📊 Strategic Dashboard")
-    
-    # --- 👕 DETAILED REMAINING STOCK CALCULATION ---
-    st.subheader("👕 T-Shirt Inventory Analysis (Actual vs Remaining)")
-    
-    # Calculate current usage
-    stock_df = pd.DataFrame(list(st.session_state.stock.items()), columns=['Size', 'Total_Ordered'])
-    
-    dist_counts = st.session_state.df[st.session_state.df['T_Shirt_Collected'] == 'Yes']['T_Shirt_Size'].value_counts()
-    
-    stock_df['Distributed'] = stock_df['Size'].apply(lambda x: dist_counts.get(x, 0))
-    stock_df['Remaining'] = stock_df['Total_Ordered'] - stock_df['Distributed']
-    
-    # Visual Cards for Stock
-    stock_cols = st.columns(5)
-    for i, row_s in stock_df.iterrows():
-        with stock_cols[i]:
-            st.metric(f"Size {row_s['Size']}", f"{row_s['Remaining']} Left", f"Total: {row_s['Total_Ordered']}")
-            progress_val = max(0, min(row_s['Remaining'] / row_s['Total_Ordered'], 1.0)) if row_s['Total_Ordered'] > 0 else 0
-            st.progress(progress_val)
-            if row_s['Remaining'] <= 5: st.warning("Critically Low")
-
-    # --- 📈 ATTENDANCE & DEMOGRAPHICS ---
-    st.markdown("---")
-    st.subheader("📈 Attendance & Demographics")
-    
-    met1, met2, met3, met4 = st.columns(4)
-    total_reg = len(st.session_state.df)
-    total_in = len(st.session_state.df[st.session_state.df['Entry_Status'] == 'Done'])
-    
-    met1.metric("Total Registered", total_reg)
-    met2.metric("Total Checked-in", total_in, f"{round((total_in/total_reg)*100,1)}%")
-    met3.metric("Pending Arrivals", total_reg - total_in)
-    met4.metric("Kits Distributed", stock_df['Distributed'].sum())
-
-    st.markdown("---")
-    # Graphs
-    gc1, gc2 = st.columns(2)
-    with gc1:
-        st.markdown("#### Role Distribution")
-        st.bar_chart(st.session_state.df['Role'].value_counts())
-    with gc2:
-        st.markdown("#### T-Shirt Size Preference")
-        st.bar_chart(st.session_state.df['T_Shirt_Size'].value_counts())
-
-# ==============================================================================
-# 8. REMAINING MODULES (DETAILED)
-# ==============================================================================
-elif nav_choice == "➕ Add New Entry":
-    st.title("➕ Strategic Manual Entry")
-    with st.form("detailed_add_form"):
-        st.info("Ensure all information is verified before adding to the cloud database.")
-        f_name = st.text_input("Full Name")
-        f_role = st.selectbox("Assign Role", ["Student", "Volunteer", "Teacher", "Staff", "Guest"])
-        f_phone = st.text_input("Phone Number")
-        f_class = st.text_input("Class / Dept", "N/A")
-        f_size = st.selectbox("T-Shirt Size", ["S", "M", "L", "XL", "XXL"], index=2)
-        
-        if st.form_submit_button("➕ ADD TO DATABASE"):
-            if not f_name or not f_phone:
-                st.error("Name and Phone are mandatory fields.")
-            else:
-                new_entry = {
-                    'Name': f_name, 'Role': f_role, 'Spot Phone': f_phone, 'Guardian Phone': 'N/A',
-                    'Ticket_Number': f"MAN-{int(time.time())}", 'Class': f_class, 'Roll': 'N/A',
-                    'Entry_Status': 'N/A', 'Entry_Time': 'N/A', 'Bus_Number': 'Unassigned',
-                    'T_Shirt_Size': f_size, 'T_Shirt_Collected': 'No', 'Notes': 'Manual Entry'
-                }
-                st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new_entry])], ignore_index=True)
-                if sync_to_cloud("Data", st.session_state.df):
-                    st.success("New Entry Added to Cloud!"); time.sleep(1); st.rerun()
-
-elif nav_choice == "🚫 Absentee Manager":
-    st.title("🚫 Absentee List")
-    absent_df = st.session_state.df[st.session_state.df['Entry_Status'] != 'Done']
-    st.metric("Total Absent Students", len(absent_df))
-    st.dataframe(absent_df[['Name', 'Class', 'Role', 'Spot Phone', 'Guardian Phone']], use_container_width=True)
-
-elif nav_choice == "📝 Database Master":
-    st.title("📝 Master Database Control")
-    st.warning("Directly viewing the master database. Changes here should be made through edit modules.")
-    st.dataframe(st.session_state.df, use_container_width=True)
-    st.download_button("📥 Export Full Database (CSV)", st.session_state.df.to_csv(index=False), "master_event_data.csv", "text/csv")
-
-# ==============================================================================
-# FOOTER
-# ==============================================================================
-st.sidebar.markdown("---")
-st.sidebar.caption("System Built by Gemini AI | Visuals by CineMotion")
+# --- TAB: ADMIN DATA ---
+elif menu == "📝 Admin Data":
+    st.title("📝 Full DB"); st.dataframe(st.session_state.df)
+    st.download_button("Download CSV", st.session_state.df.to_csv(), "data.csv")
