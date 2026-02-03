@@ -1,624 +1,326 @@
 import streamlit as st
-import pandas as pd
-from streamlit_gsheets import GSheetsConnection
-from datetime import datetime
-import time
-import pytz
-import streamlit.components.v1 as components
+from PIL import Image, ImageStat, ImageOps
+import io
+import zipfile
+import math
 
-# ==================== 1. CONFIG & STYLE (ULTRA PREMIUM) ====================
-st.set_page_config(page_title="Event OS Pro | Willian's 26", page_icon="🎆", layout="wide")
+# --- 1. CONFIG & STYLING ---
+st.set_page_config(
+    page_title="AutoBrand Pro Ultra", 
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 st.markdown("""
-    <style>
-    /* 🔥 BACKGROUND (Dark Theme) 🔥 */
-    .stApp {
-        background-color: #000000;
-        background-image: 
-            linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.95)),
-            url("https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop");
-        background-size: cover;
-        background-attachment: fixed;
-        color: #ffffff;
-    }
-    
-    /* SIDEBAR */
-    section[data-testid="stSidebar"] {
-        background-color: rgba(5, 5, 5, 0.95);
-        border-right: 1px solid #222;
-    }
-
-    /* === 🚀 ULTRA PREMIUM CARD STYLES === */
-    
-    /* 1. STUDENT: Cyber Blue Glass */
-    .card-student {
-        background: rgba(16, 30, 45, 0.7);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(0, 255, 255, 0.2);
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
-        border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px;
-        transition: transform 0.3s ease;
-    }
-    .card-student:hover { transform: translateY(-5px); box-shadow: 0 0 25px rgba(0, 255, 255, 0.3); }
-
-    /* 2. ORGANIZER: Neon Purple Pulse */
-    @keyframes pulse-purple {
-        0% { box-shadow: 0 0 0 0 rgba(213, 0, 249, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(213, 0, 249, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(213, 0, 249, 0); }
-    }
-    .card-organizer {
-        background: linear-gradient(135deg, rgba(40, 0, 80, 0.9), rgba(10, 0, 20, 0.9));
-        border: 2px solid #d500f9;
-        border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px;
-        animation: pulse-purple 2s infinite;
-    }
-    .card-organizer .id-name { text-shadow: 0 0 10px #d500f9; }
-
-    /* 3. STAFF/TEACHER: Professional Emerald */
-    .card-staff {
-        background: linear-gradient(145deg, #002b20, #001a13);
-        border-top: 3px solid #00ff88;
-        border-bottom: 1px solid #00ff88;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-        border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px;
-    }
-
-    /* 4. VOLUNTEER: Energetic Warning Style */
-    .card-volunteer {
-        background: repeating-linear-gradient(
-            45deg,
-            #1a0500,
-            #1a0500 10px,
-            #2a0a00 10px,
-            #2a0a00 20px
-        );
-        border: 2px solid #ff4b1f;
-        border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px;
-        box-shadow: 0 0 15px rgba(255, 75, 31, 0.3);
-    }
-
-    /* 5. ELITE (Principal/Head): Royal Gold Metal */
-    .card-elite {
-        background: linear-gradient(to bottom, #111, #222);
-        border: 2px solid transparent;
-        border-image: linear-gradient(to bottom right, #b8860b 0%, #ffd700 100%);
-        border-image-slice: 1;
-        box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
-        padding: 20px; text-align: center; margin-bottom: 20px;
-        position: relative;
-    }
-    /* Gold Shine Effect */
-    .card-elite::after {
-        content: "VIP ACCESS";
-        position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-        background: #ffd700; color: black; font-weight: bold; font-size: 10px;
-        padding: 2px 10px; border-radius: 10px; box-shadow: 0 0 10px #ffd700;
-    }
-    .card-elite .id-name {
-        background: linear-gradient(to right, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
-        -webkit-background-clip: text;
-        color: transparent;
-        font-weight: 900; letter-spacing: 2px;
-    }
-
-    /* COMMON TEXT STYLES */
-    .id-name { font-size: 28px; font-weight: bold; margin: 12px 0; color: white; letter-spacing: 0.5px; }
-    .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 0; font-size: 14px; color: #ccc; }
-    .role-badge { 
-        background: rgba(255,255,255,0.1); 
-        color: #fff; padding: 4px 15px; border-radius: 20px; 
-        font-size: 11px; text-transform: uppercase; letter-spacing: 2px; border: 1px solid rgba(255,255,255,0.2); 
-    }
-    
-    /* INPUT FIELDS */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background-color: rgba(20, 20, 20, 0.9); color: white; border: 1px solid #444;
-    }
-    
-    /* STOCK BOX STYLE (NEW) */
-    .stock-box {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid #333;
-        border-radius: 8px; padding: 10px; text-align: center;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# ==================== 2. DATA ENGINE ====================
-conn = st.connection("gsheets", type=GSheetsConnection)
-BUS_CAPACITY = 45
-
-# 🔥 SAFE UPDATE FUNCTION 🔥
-def safe_update(ws, data):
-    try:
-        conn.update(worksheet=ws, data=data)
-        return True
-    except Exception as e:
-        st.error(f"⚠️ Cloud Sync Error: {e}")
-        st.warning("Please check if the Service Account has 'Editor' permission in Google Sheet.")
-        return False
-
-def load_data():
-    try:
-        df = conn.read(worksheet="Data", ttl=0)
-        req_cols = ['Name', 'Role', 'Spot Phone', 'Guardian Phone', 'Ticket_Number', 'Class', 'Roll', 'Entry_Status', 'Entry_Time', 'Bus_Number', 'T_Shirt_Size', 'T_Shirt_Collected', 'Notes']
-        for c in req_cols:
-            if c not in df.columns: df[c] = ''
-        for col in df.columns:
-            df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).replace(['nan', 'None', ''], 'N/A')
-        return df
-    except: return pd.DataFrame()
-
-# --- 🔥 NEW: LOAD STOCK FUNCTION 🔥 ---
-def load_stock():
-    try:
-        df_s = conn.read(worksheet="Stock", ttl=0)
-        stock = dict(zip(df_s['Size'], df_s['Quantity']))
-        return {s: int(float(stock.get(s, 0))) for s in ["S", "M", "L", "XL", "XXL"]}
-    except: return {"S":0, "M":0, "L":0, "XL":0, "XXL":0}
-
-if 'df' not in st.session_state: st.session_state.df = load_data()
-if 'stock' not in st.session_state: st.session_state.stock = load_stock()
-
-# ==================== 3. LOGIN ====================
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-if not st.session_state.logged_in:
-    st.title("🔐 Willian's 26 | Admin")
-    c1, c2 = st.columns(2)
-    with c1:
-        u = st.text_input("Username")
-        p = st.text_input("Password", type="password")
-        if st.button("Login", type="primary"):
-            if u == "admin" and p == "1234":
-                st.session_state.logged_in = True; st.session_state.user = u; st.rerun()
-            else: st.error("Wrong Password!")
-    st.stop()
-
-# ==================== 4. TIMER & MENU ====================
-st.sidebar.title("⚡ Menu")
-target_iso = "2026-02-03T07:00:00+06:00"
-
-timer_html = f"""
-<!DOCTYPE html>
-<html>
-<head>
 <style>
-    body {{ margin: 0; font-family: 'Courier New', monospace; background-color: transparent; }}
-    .timer-container {{
-        background: linear-gradient(135deg, #000428 0%, #004e92 100%);
-        color: white;
-        padding: 15px;
-        border-radius: 12px;
-        text-align: center;
-        border: 1px solid rgba(255,255,255,0.2);
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }}
-    .label {{ font-family: sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; color: #00ff88; }}
-    .time {{ font-size: 28px; font-weight: bold; letter-spacing: 1px; color: #fff; text-shadow: 0 0 10px #00ff88; }}
-    .sub-labels {{ font-size: 10px; opacity: 0.7; font-family: sans-serif; margin-bottom: 8px; }}
-    .date-box {{ border-top: 1px solid rgba(255,255,255,0.2); padding-top: 5px; font-family: sans-serif; font-size: 12px; color: #ff00cc; font-weight: bold; letter-spacing: 1px; }}
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; }
+    div[data-testid="stMetricValue"] { font-size: 24px; }
 </style>
-</head>
-<body>
-    <div class="timer-container">
-        <div class="label">EVENT COUNTDOWN</div>
-        <div id="countdown" class="time">-- : -- : --</div>
-        <div class="sub-labels">HOURS &nbsp;&nbsp; MIN &nbsp;&nbsp; SEC</div>
-        <div class="date-box">📅 3RD FEB 2026</div>
-    </div>
-<script>
-function updateTimer() {{
-    const target = new Date("{target_iso}").getTime();
-    setInterval(function() {{
-        const now = new Date().getTime();
-        const diff = target - now;
-        if (diff < 0) {{ document.getElementById("countdown").innerHTML = "STARTED!"; return; }}
-        const totalHours = Math.floor(diff / (1000 * 60 * 60));
-        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const s = Math.floor((diff % (1000 * 60)) / 1000);
-        const hh = totalHours < 10 ? "0" + totalHours : totalHours;
-        const mm = m < 10 ? "0" + m : m;
-        const ss = s < 10 ? "0" + s : s;
-        document.getElementById("countdown").innerHTML = hh + " : " + mm + " : " + ss;
-    }}, 1000);
-}}
-updateTimer();
-</script>
-</body>
-</html>
-"""
-with st.sidebar: components.html(timer_html, height=155)
-
-menu = st.sidebar.radio("Go To", ["🔍 Search & Entry", "➕ Add Staff/Teacher", "📜 View Lists", "🚫 Absent List", "🚌 Bus Manager", "📊 Dashboard", "📝 Admin Data"])
-
-if st.sidebar.button("🔄 Refresh Data"):
-    st.cache_data.clear(); st.session_state.df = load_data(); st.session_state.stock = load_stock(); st.rerun()
-
-# --- TAB 1: SEARCH & ENTRY ---
-if menu == "🔍 Search & Entry":
-    st.title("🔍 Search & Entry")
-    q = st.text_input("🔎 Search by Ticket / Name / Phone:").strip()
-    if q:
-        df = st.session_state.df
-        mask = df['Name'].str.contains(q, case=False, regex=False) | \
-               df['Ticket_Number'].str.contains(q, case=False, regex=False) | \
-               df['Spot Phone'].str.contains(q, case=False, regex=False)
-        res = df[mask]
-        
-        if not res.empty:
-            idx = res.index[0]
-            row = df.loc[idx]
-            
-            # 🔥 ROLE BASED PREMIUM CARDS 🔥
-            role = row['Role']
-            if role in ["Principal", "College Head"]: card_class = "card-elite"
-            elif role == "Organizer": card_class = "card-organizer"
-            elif role in ["Teacher", "College Staff"]: card_class = "card-staff"
-            elif role == "Volunteer": card_class = "card-volunteer"
-            else: card_class = "card-student"
-
-            is_ent = row['Entry_Status'] == 'Done'
-            is_kit = row['T_Shirt_Collected'] == 'Yes'
-            sz = row['T_Shirt_Size']
-            rem = st.session_state.stock.get(sz, 0)
-            
-            col1, col2 = st.columns([1, 1.5])
-            with col1:
-                status_color = "#00ff88" if is_ent else "#ff4b4b"
-                kit_color = "#00ff88" if is_kit else "#ffcc00"
-                kit_status = "✅ COLLECTED" if is_kit else "📦 PENDING"
-                
-                # HTML CARD RENDER
-                html_code = f"""
-<div class="{card_class}">
-    <div style="background:{status_color}; color:black; font-weight:bold; padding:5px; border-radius:5px; margin-bottom:10px;">
-        {'✅ CHECKED IN' if is_ent else '⏳ NOT ENTERED'}
-    </div>
-    <span class="role-badge">{row['Role']}</span>
-    <div class="id-name">{row['Name']}</div>
-    <div class="info-row">
-        <span>Ticket ID</span>
-        <span style="color:white; font-family:monospace;">{row['Ticket_Number']}</span>
-    </div>
-    <div class="info-row">
-        <span>Bus No</span>
-        <span style="color:white;">{row['Bus_Number']}</span>
-    </div>
-    <div style="margin-top:15px; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1);">
-        <div style="font-size:12px; color:#aaa; margin-bottom:5px;">MERCHANDISE</div>
-        <span style="font-size:16px; font-weight:bold; color:white;">👕 Size: {sz}</span><br>
-        <span style="font-size:12px; color:{kit_color};">{kit_status}</span>
-    </div>
-</div>
-"""
-                st.markdown(html_code, unsafe_allow_html=True)
-                
-                if row['Bus_Number'] != "Unassigned":
-                    if st.button(f"❌ Unassign {row['Bus_Number']}", type="secondary", key=f"un_{idx}"):
-                        st.session_state.df.at[idx, 'Bus_Number'] = 'Unassigned'
-                        if safe_update("Data", st.session_state.df):
-                            st.success(f"Removed from {row['Bus_Number']}!"); time.sleep(0.5); st.rerun()
-
-            with col2:
-                with st.container(border=True):
-                    st.subheader("✏️ Update Details")
-                    c_n, c_r = st.columns([1.5, 1])
-                    new_name = c_n.text_input("Name", row['Name'])
-                    role_opts = ["Student", "Volunteer", "Teacher", "College Staff", "Organizer", "Principal", "College Head"]
-                    new_role = c_r.selectbox("Role", role_opts, index=role_opts.index(row['Role']) if row['Role'] in role_opts else 0)
-                    c_p, c_t = st.columns(2)
-                    new_phone = c_p.text_input("Phone", row['Spot Phone'])
-                    new_ticket = c_t.text_input("Ticket", row['Ticket_Number'])
-                    new_size = st.selectbox("Size", ["S", "M", "L", "XL", "XXL"], index=["S", "M", "L", "XL", "XXL"].index(sz) if sz in ["S", "M", "L", "XL", "XXL"] else 2)
-                    st.markdown("---")
-                    c_a, c_b = st.columns(2)
-                    new_ent = c_a.toggle("✅ Entry", is_ent)
-                    new_kit = c_b.toggle("👕 Kit", is_kit)
-                    buses = ["Unassigned", "Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-                    new_bus = st.selectbox("🚌 Bus", buses, index=buses.index(row['Bus_Number']) if row['Bus_Number'] in buses else 0)
-                    
-                    if st.button("💾 Save Changes", type="primary"):
-                        if not new_phone or new_phone=='N/A': st.error("Phone Required!")
-                        else:
-                            can_assign = True
-                            if new_bus != "Unassigned" and new_bus != row['Bus_Number']:
-                                if len(df[df['Bus_Number'] == new_bus]) >= BUS_CAPACITY: st.error("Bus Full!"); can_assign = False
-                            if can_assign:
-                                # --- 🔥 NEW STOCK LOGIC 🔥 ---
-                                if new_kit:
-                                    if is_kit and sz != new_size: st.session_state.stock[sz]+=1; st.session_state.stock[new_size]-=1
-                                    elif not is_kit: st.session_state.stock[new_size]-=1
-                                elif not new_kit and is_kit: st.session_state.stock[sz]+=1
-                                # -----------------------------
-
-                                st.session_state.df.at[idx, 'Name'] = new_name
-                                st.session_state.df.at[idx, 'Role'] = new_role
-                                st.session_state.df.at[idx, 'Spot Phone'] = new_phone
-                                st.session_state.df.at[idx, 'Ticket_Number'] = new_ticket
-                                st.session_state.df.at[idx, 'T_Shirt_Size'] = new_size
-                                st.session_state.df.at[idx, 'Entry_Status'] = 'Done' if new_ent else 'N/A'
-                                st.session_state.df.at[idx, 'T_Shirt_Collected'] = 'Yes' if new_kit else 'No'
-                                st.session_state.df.at[idx, 'Bus_Number'] = new_bus
-                                if new_ent and row['Entry_Time'] == 'N/A': st.session_state.df.at[idx, 'Entry_Time'] = datetime.now().strftime("%H:%M:%S")
-                                
-                                # 🔥 SAFE UPDATE 🔥
-                                if safe_update("Data", st.session_state.df):
-                                    s_d = [{"Size": k, "Quantity": v} for k, v in st.session_state.stock.items()]
-                                    safe_update("Stock", pd.DataFrame(s_d))
-                                    st.success("Updated!"); time.sleep(0.5); st.rerun()
-        else: st.warning("Not Found")
-
-# --- TAB: ADD STAFF ---
-elif menu == "➕ Add Staff/Teacher":
-    st.title("➕ Add Manual Entry")
-    with st.form("add"):
-        c1, c2 = st.columns(2); name = c1.text_input("Name"); ph = c2.text_input("Phone")
-        c3, c4 = st.columns(2); role = c3.selectbox("Role", ["Teacher", "College Staff", "Guest", "Volunteer", "Principal", "College Head"]); cls = c4.text_input("Class", "N/A")
-        if st.form_submit_button("Add"):
-            if name and ph:
-                new = {'Name':name, 'Role':role, 'Spot Phone':ph, 'Ticket_Number':f"MAN-{int(time.time())}", 'Class':cls, 'Roll':'N/A', 'Entry_Status':'N/A', 'Entry_Time':'N/A', 'Bus_Number':'Unassigned', 'T_Shirt_Size':'L', 'T_Shirt_Collected':'No', 'Notes':'Manual'}
-                st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new])], ignore_index=True)
-                if safe_update("Data", st.session_state.df):
-                    st.success("Added!"); time.sleep(1); st.rerun()
-
-# --- TAB: VIEW LISTS ---
-elif menu == "📜 View Lists":
-    st.title("📜 View Lists")
-    filter_type = st.radio("Filter By:", ["Class", "Role"], horizontal=True)
-    view_df = pd.DataFrame()
-    if filter_type == "Class":
-        cls_list = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
-        sel = st.selectbox("Select Class", ["All"] + cls_list)
-        view_df = st.session_state.df if sel == "All" else st.session_state.df[st.session_state.df['Class'] == sel]
-    else:
-        role_list = sorted([r for r in st.session_state.df['Role'].unique() if r not in ['', 'N/A']])
-        sel_role = st.selectbox("Select Role", ["All"] + role_list)
-        view_df = st.session_state.df if sel_role == "All" else st.session_state.df[st.session_state.df['Role'] == sel_role]
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total", len(view_df)); c2.metric("Checked In", len(view_df[view_df['Entry_Status']=='Done'])); c3.metric("Pending", len(view_df)-len(view_df[view_df['Entry_Status']=='Done']))
-    st.dataframe(view_df[['Name', 'Role', 'Class', 'Spot Phone', 'Entry_Status']], use_container_width=True)
-
-# --- TAB: ABSENT LIST ---
-elif menu == "🚫 Absent List":
-    st.title("🚫 Absentee Manager")
-    abs_df = st.session_state.df[st.session_state.df['Entry_Status'] != 'Done']
-    c1, c2 = st.columns(2); c1.metric("Total Absent", len(abs_df)); c2.metric("Registered", len(st.session_state.df))
-    cls_list = sorted([c for c in abs_df['Class'].unique() if c not in ['', 'N/A']])
-    sel = st.selectbox("Filter Class", ["All"] + cls_list)
-    v_abs = abs_df if sel == "All" else abs_df[abs_df['Class'] == sel]
-    st.dataframe(v_abs[['Name', 'Class', 'Role', 'Spot Phone']], use_container_width=True)
-    if st.button("🖨️ Print Absent List"):
-        html = f"<html><body><h1>Absent List - {sel}</h1><table><tr><th>Name</th><th>Class</th><th>Phone</th></tr>"
-        for _, r in v_abs.iterrows(): html += f"<tr><td>{r['Name']}</td><td>{r['Class']}</td><td>{r['Spot Phone']}</td></tr>"
-        html += "</table></body></html>"
-        st.download_button("⬇️ PDF Ready", html, "Absent.html", "text/html")
-
-# ==================== 🚌 BUS MANAGER (FINAL VERSION - NO SEAT FOR STAFF) ====================
-elif menu == "🚌 Bus Manager":
-    st.title("🚌 Fleet & Personnel Deployment")
-    buses = ["Bus 1", "Bus 2", "Bus 3", "Bus 4"]
-    
-    # --- 1. BUS CAPACITY DISPLAY ---
-    cols = st.columns(4)
-    for i, b in enumerate(buses):
-        df_b = st.session_state.df[st.session_state.df['Bus_Number'] == b]
-        
-        # লজিক: শুধু Student এবং Teacher-দের সিট কাউন্ট হবে
-        seat_users = df_b[df_b['Role'] != 'College Staff']
-        staff_only = df_b[df_b['Role'] == 'College Staff']
-        
-        occupied = len(seat_users)
-        extra_staff = len(staff_only)
-        
-        with cols[i]:
-            st.metric(b, f"{occupied}/{BUS_CAPACITY}", f"{BUS_CAPACITY-occupied} Free")
-            st.progress(min(occupied/BUS_CAPACITY, 1.0))
-            if extra_staff > 0:
-                st.caption(f"➕ {extra_staff} Staff (Not counting as seats)")
-
-    st.markdown("---")
-
-    # --- 2. UNIVERSAL ASSIGNMENT ENGINE ---
-    with st.container(border=True):
-        st.subheader("🚀 Bulk Assignment (Students / Teachers / Staff)")
-        
-        assign_mode = st.radio(
-            "Who to assign?", 
-            ["Students (By Class)", "Staff/Teachers (By Role)"], 
-            horizontal=True
-        )
-        
-        c_l, c_r = st.columns(2)
-        
-        if assign_mode == "Students (By Class)":
-            options = sorted([c for c in st.session_state.df['Class'].unique() if c not in ['', 'N/A']])
-            target_val = c_l.selectbox("Select Class", options)
-            filter_col = 'Class'
-        else:
-            all_roles = sorted([r for r in st.session_state.df['Role'].unique() if r not in ['', 'N/A']])
-            staff_roles = [r for r in all_roles if r != "Student"]
-            target_val = c_l.selectbox("Select Role", staff_roles)
-            filter_col = 'Role'
-
-        target_bus = c_r.selectbox("Select Bus", buses)
-        
-        # যাদের এখনো বাস দেওয়া হয়নি
-        pending = st.session_state.df[
-            (st.session_state.df[filter_col] == target_val) & 
-            (st.session_state.df['Bus_Number'] == 'Unassigned')
-        ]
-        
-        # বর্তমান বাসের সিট স্ট্যাটাস
-        current_bus_df = st.session_state.df[st.session_state.df['Bus_Number'] == target_bus]
-        occupied_seats = len(current_bus_df[current_bus_df['Role'] != 'College Staff'])
-        free_space = BUS_CAPACITY - occupied_seats
-        
-        # 🔥 নতুন লজিক: কলেজ স্টাফদের জন্য 'Bus Full' এরর বাইপাস 🔥
-        is_exempted = (target_val == "College Staff")
-
-        if is_exempted:
-            st.success(f"✅ Role: '{target_val}' - No seat required. Assigning as extra staff.")
-            if len(pending) > 0:
-                if st.button(f"Assign All {len(pending)} Staff to {target_bus}", type="primary", use_container_width=True):
-                    st.session_state.df.loc[pending.index, 'Bus_Number'] = target_bus
-                    if safe_update("Data", st.session_state.df):
-                        st.success("✅ Staff assigned without taking seats!"); time.sleep(1); st.rerun()
-            else:
-                st.warning("No unassigned staff found.")
-        
-        else:
-            # যাদের জন্য সিট লাগে (Student/Teacher)
-            st.info(f"📊 {len(pending)} pending | Seats left in {target_bus}: {free_space}")
-            
-            if len(pending) == 0:
-                st.warning(f"No unassigned people found.")
-            elif free_space >= len(pending):
-                if st.button(f"Assign All {len(pending)} to {target_bus}", type="primary", use_container_width=True):
-                    st.session_state.df.loc[pending.index, 'Bus_Number'] = target_bus
-                    if safe_update("Data", st.session_state.df):
-                        st.success("✅ Assigned Successfully!"); time.sleep(1); st.rerun()
-            else:
-                st.error(f"⚠️ Bus Full! Only {free_space} seats left for {target_val}.")
-                labels = pending.apply(lambda x: f"{x['Name']} ({x['Spot Phone']})", axis=1).tolist()
-                selected = st.multiselect("Select People:", labels, max_selections=free_space)
-                if st.button(f"Confirm Selected ({len(selected)})", use_container_width=True):
-                    if selected:
-                        sel_idxs = [pending[pending['Spot Phone'] == s.split('(')[-1].replace(')', '')].index[0] for s in selected]
-                        st.session_state.df.loc[sel_idxs, 'Bus_Number'] = target_bus
-                        if safe_update("Data", st.session_state.df):
-                            st.success("✅ Partial assignment complete!"); time.sleep(1); st.rerun()
-
-    st.markdown("---")
-
-    # --- 3. PRINT MANIFEST (WITH IN/OUT SIGNS) ---
-    st.subheader("🖨️ Print Official Manifest")
-    if st.button("📄 Generate PDF Manifest", use_container_width=True):
-        html = """
-        <html>
-        <head>
-        <style>
-            @page { size: A4; margin: 10mm; }
-            body { font-family: sans-serif; font-size: 11px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { border: 1px solid #000; padding: 6px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .header { text-align: center; border: 2px solid #000; padding: 10px; margin-top: 20px; }
-            .page-break { page-break-after: always; }
-        </style>
-        </head>
-        <body>
-        """
-        for b in buses:
-            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == b]
-            if not b_df.empty:
-                s_count = len(b_df[b_df['Role'] != 'College Staff'])
-                stf_count = len(b_df[b_df['Role'] == 'College Staff'])
-                html += f"""
-                <div class="page-break">
-                    <div class="header">
-                        <h2 style="margin:0;">{b} - PASSENGER MANIFEST</h2>
-                        <span>Main Seats: {s_count}/{BUS_CAPACITY} | Extra Staff: {stf_count}</span>
-                    </div>
-                    <table>
-                        <tr>
-                            <th>SL</th><th>Name</th><th>Role/Class</th><th>Phone</th>
-                            <th style="width:70px;">IN SIGN</th><th style="width:70px;">OUT SIGN</th>
-                        </tr>
-                """
-                for i, (_, r) in enumerate(b_df.iterrows(), 1):
-                    info = r['Class'] if r['Role'] == 'Student' else r['Role']
-                    html += f"<tr><td>{i}</td><td>{r['Name']}</td><td>{info}</td><td>{r['Spot Phone']}</td><td></td><td></td></tr>"
-                html += "</table></div>"
-        html += "</body></html>"
-        st.download_button("⬇️ Download Manifest", html, "Bus_Manifest.html", "text/html", use_container_width=True)
-    # -------------------------------------------------------------
-    # -------------------------------------------------------------
-    # -------------------------------------------
-
-    with st.expander("🗑️ Bulk Unassign Tools"):
-        st.subheader("Option: Empty a Bus")
-        target_bus_e = st.selectbox("Select Bus to Empty:", buses)
-        if st.button(f"🗑️ Empty {target_bus_e}"): 
-             mask = st.session_state.df['Bus_Number'] == target_bus_e
-             if mask.sum() > 0:
-                 st.session_state.df.loc[mask, 'Bus_Number']='Unassigned'
-                 if safe_update("Data", st.session_state.df):
-                     st.success(f"Emptied {target_bus_e}!"); time.sleep(1); st.rerun()
-             else: st.warning("Bus is already empty.")
-
-    st.subheader("🖨️ Print Manifest")
-    if st.button("📄 Generate PDF Ready"):
-        html = "<html><head><style>@page{size:A4;margin:10mm;} body{font-family:Arial;font-size:12px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid black;padding:5px;} .page{page-break-after:always;}</style></head><body>"
-        for b in buses:
-            b_df = st.session_state.df[st.session_state.df['Bus_Number'] == b]
-            if not b_df.empty:
-                html += f"<div class='page'><h1>{b} List ({len(b_df)})</h1><table><tr><th>SL</th><th>Name</th><th>Role</th><th>Phone</th><th>Sign</th></tr>"
-                for i, (_, r) in enumerate(b_df.iterrows(), 1): html += f"<tr><td>{i}</td><td>{r['Name']}</td><td>{r['Role']}</td><td>{r['Spot Phone']}</td><td></td></tr>"
-                html += "</table></div>"
-        html += "</body></html>"
-        st.download_button("⬇️ Download", html, "Manifest.html", "text/html")
-
-    st.subheader("🚀 Auto Assign (Role Based)")
-    c1, c2 = st.columns(2); role = c1.selectbox("Role", ["Student", "Volunteer", "Teacher"]); start = c2.selectbox("Start", buses)
-    if st.button("Assign"):
-        mask = st.session_state.df['Role'] == role; idxs = st.session_state.df[mask].index
-        b_i = buses.index(start); cnt=0
-        for i in idxs:
-            while b_i<4:
-                if len(st.session_state.df[st.session_state.df['Bus_Number']==buses[b_i]]) < BUS_CAPACITY:
-                    st.session_state.df.at[i, 'Bus_Number'] = buses[b_i]; cnt+=1; break
-                else: b_i+=1
-        if safe_update("Data", st.session_state.df):
-            st.success(f"Assigned {cnt}!"); st.rerun()
-
-# --- TAB: DASHBOARD ---
-elif menu == "📊 Dashboard":
-    st.title("📊 Event Stats")
-    
-    # --- 🔥 NEW: STOCK DASHBOARD 🔥 ---
-    st.subheader("👕 T-Shirt Stock Live")
-    s_cols = st.columns(5)
-    for i, size in enumerate(["S", "M", "L", "XL", "XXL"]):
-        total_q = st.session_state.stock.get(size, 0)
-        with s_cols[i]:
-            st.markdown(f"""
-            <div class="stock-box">
-                <div style="font-size:12px; color:#aaa;">SIZE {size}</div>
-                <div style="font-size:24px; font-weight:bold; color:#00ff88;">{total_q}</div>
-                <div style="font-size:10px;">Remaining</div>
-            </div>
-            """, unsafe_allow_html=True)
-    st.markdown("---")
-    # ---------------------------------
-    
-    if not st.session_state.df.empty:
-        df = st.session_state.df
-        grp1 = ['Student', 'Organizer', 'Volunteer']
-        cnt1 = len(df[df['Role'].isin(grp1)])
-        grp2 = ['Teacher', 'College Staff', 'Principal', 'College Head']
-        cnt2 = len(df[df['Role'].isin(grp2)])
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Total Registered", len(df))
-        c2.metric("Students + Team", cnt1)
-        c3.metric("Faculty & Staff", cnt2)
-        c4.metric("Checked In", len(df[df['Entry_Status']=='Done']))
-        st.markdown("### T-Shirt Distribution")
-        st.bar_chart(df['T_Shirt_Size'].value_counts())
-    else: st.warning("⚠️ No data available.")
-
-# --- TAB: ADMIN DATA ---
-elif menu == "📝 Admin Data":
-    st.title("📝 Full DB"); st.dataframe(st.session_state.df)
-    st.download_button("Download CSV", st.session_state.df.to_csv(), "data.csv")
-
-# --- SIDEBAR FOOTER (CREDITS) ---
-st.sidebar.markdown("---")
-st.sidebar.markdown("""
-<div style="text-align: center; font-family: sans-serif; color: rgba(255,255,255,0.5); font-size: 11px;">
-    <p style="margin-bottom:5px;">VISUALS BY</p>
-    <h3 style="margin:0; color: white; text-shadow: 0 0 10px #00ff88; font-family: sans-serif;">CineMotion</h3>
-    <p style="margin:10px 0 5px 0;">SYSTEM BY</p>
-    <h3 style="margin:0; color: white; text-shadow: 0 0 10px #00ccff; font-family: sans-serif;">Gemini AI</h3>
-</div>
 """, unsafe_allow_html=True)
+
+# --- 2. SESSION STATE ---
+if 'processed_images' not in st.session_state:
+    st.session_state.processed_images = {}
+if 'review_mode' not in st.session_state:
+    st.session_state.review_mode = False
+
+# --- 3. HELPER FUNCTIONS ---
+
+def get_brightness(image, crop_box=None):
+    """Calculates brightness. If crop_box is None, analyzes whole image."""
+    if image.mode == 'RGBA':
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        background.paste(image, mask=image.split()[3])
+        target = background
+    else:
+        target = image
+        
+    if crop_box:
+        region = target.crop(crop_box).convert('L')
+    else:
+        region = target.convert('L')
+        
+    stat = ImageStat.Stat(region)
+    return stat.mean[0]
+
+def change_opacity(img, opacity):
+    """Adjusts the opacity of an RGBA image."""
+    img = img.copy()
+    alpha = img.split()[3]
+    alpha = ImageStat.Stat(alpha).mean[0]
+    # Reduce alpha by the opacity percentage
+    alpha_factor = opacity / 100.0
+    
+    # Create a new alpha channel
+    new_alpha = img.split()[3].point(lambda p: int(p * alpha_factor))
+    img.putalpha(new_alpha)
+    return img
+
+def create_tiled_overlay(base_w, base_h, logo_img, scale_pct, spacing_scale=1.5):
+    """Creates a transparent layer with the logo repeated in a grid."""
+    overlay = Image.new('RGBA', (base_w, base_h), (0,0,0,0))
+    
+    # Calculate tile size
+    tile_w = int(base_w * (scale_pct / 100))
+    if tile_w < 20: tile_w = 20
+    aspect = logo_img.width / logo_img.height
+    tile_h = int(tile_w / aspect)
+    
+    # Resize logo once
+    tile_logo = logo_img.resize((tile_w, tile_h), Image.Resampling.LANCZOS)
+    
+    # Grid Logic
+    cols = int(base_w / tile_w) + 2
+    rows = int(base_h / tile_h) + 2
+    
+    step_x = int(tile_w * spacing_scale)
+    step_y = int(tile_h * spacing_scale)
+    
+    for y in range(0, base_h, step_y):
+        for x in range(0, base_w, step_x):
+            # Shift every other row for a "brick" pattern
+            shift = int(step_x / 2) if (y // step_y) % 2 == 1 else 0
+            
+            # Paste (using the logo as its own mask)
+            final_x = x + shift
+            # Check bounds to avoid unnecessary pasting
+            if final_x < base_w and y < base_h:
+                overlay.paste(tile_logo, (final_x, y), tile_logo)
+                
+    return overlay
+
+# --- 4. CORE PROCESSING ---
+
+def process_single_image(image_file, logo_black, logo_white, settings, manual_override=None):
+    """
+    Main logic handling multiple styles.
+    """
+    img = Image.open(image_file).convert("RGBA")
+    img_w, img_h = img.size
+    
+    # Unpack Settings
+    style = settings['style']
+    corner = settings['corner']
+    scale = settings['scale']
+    padding = settings['padding']
+    threshold = settings['threshold']
+    opacity = settings['opacity']
+    
+    # --- 1. DETERMINE COLOR ---
+    # Smart detection logic differs by style
+    ref_logo = logo_black
+    
+    if manual_override:
+        used_color = manual_override
+    else:
+        # Auto-detect logic
+        if style == "Tiled (Pattern)":
+            # For tiled, check AVERAGE brightness of the whole image
+            brightness = get_brightness(img)
+        elif style == "Center (Big)":
+            # Check center area brightness
+            cw, ch = int(img_w*0.3), int(img_h*0.3)
+            cx, cy = int((img_w-cw)/2), int((img_h-ch)/2)
+            brightness = get_brightness(img, (cx, cy, cx+cw, cy+ch))
+        else:
+            # Corner logic (Standard)
+            # Roughly estimate corner based on standard size
+            test_w = int(img_w * (scale/100))
+            test_h = int(test_w * (ref_logo.height / ref_logo.width))
+            px = int(img_w*(padding/100))
+            if "Right" in corner: x = img_w - test_w - px
+            else: x = px
+            if "Bottom" in corner: y = img_h - test_h - px
+            else: y = px
+            brightness = get_brightness(img, (x, y, x+test_w, y+test_h))
+            
+        if brightness < threshold:
+            used_color = "White"
+        else:
+            used_color = "Black"
+
+    # Select and Prep Logo Color
+    raw_logo = logo_black.copy() if used_color == "Black" else logo_white.copy()
+    
+    # Apply Opacity
+    logo_final = change_opacity(raw_logo, opacity)
+
+    # --- 2. APPLY STYLE ---
+    watermark_layer = Image.new('RGBA', img.size, (0,0,0,0))
+    
+    if style == "Tiled (Pattern)":
+        # Generate Tiled Overlay
+        # For tiled, we usually rotate the logo slightly (optional, handled in logic if needed)
+        # Here we just pass the opaque logo to the tiler
+        tiled_layer = create_tiled_overlay(img_w, img_h, logo_final, scale, spacing_scale=1.5)
+        # Rotate the whole tiled layer slightly for that professional look? 
+        # Optional: keeping it simple grid for now.
+        watermark_layer = tiled_layer
+
+    elif style == "Center (Big)":
+        # Calculate Center Size
+        t_w = int(img_w * (scale / 100))
+        aspect = logo_final.width / logo_final.height
+        t_h = int(t_w / aspect)
+        
+        logo_resized = logo_final.resize((t_w, t_h), Image.Resampling.LANCZOS)
+        
+        x = (img_w - t_w) // 2
+        y = (img_h - t_h) // 2
+        
+        watermark_layer.paste(logo_resized, (x, y), logo_resized)
+        
+    else: # "Corner (Standard)"
+        # Calculate Corner Size
+        t_w = int(img_w * (scale / 100))
+        aspect = logo_final.width / logo_final.height
+        t_h = int(t_w / aspect)
+        
+        logo_resized = logo_final.resize((t_w, t_h), Image.Resampling.LANCZOS)
+        
+        pad_x = int(img_w * (padding / 100))
+        pad_y = int(img_h * (padding / 100))
+        
+        if corner == "Bottom Right":
+            x, y = img_w - t_w - pad_x, img_h - t_h - pad_y
+        elif corner == "Bottom Left":
+            x, y = pad_x, img_h - t_h - pad_y
+        elif corner == "Top Right":
+            x, y = img_w - t_w - pad_x, pad_y
+        elif corner == "Top Left":
+            x, y = pad_x, pad_y
+            
+        watermark_layer.paste(logo_resized, (x, y), logo_resized)
+
+    # Composite
+    final_img = Image.alpha_composite(img, watermark_layer)
+    return final_img, used_color
+
+# --- 5. UI SETUP ---
+with st.sidebar:
+    st.header("🎨 Watermark Style")
+    
+    # NEW: Style Selector
+    wm_style = st.selectbox("Choose Style", ["Corner (Standard)", "Center (Big)", "Tiled (Pattern)"])
+    
+    st.divider()
+    st.header("⚙️ Settings")
+    
+    # Dynamic settings based on style
+    if wm_style == "Corner (Standard)":
+        wm_scale = st.slider("Logo Size (%)", 5, 50, 15)
+        wm_corner = st.selectbox("Position", ["Bottom Right", "Bottom Left", "Top Right", "Top Left"])
+        wm_opacity = st.slider("Opacity (%)", 10, 100, 100)
+    elif wm_style == "Center (Big)":
+        wm_scale = st.slider("Center Logo Size (%)", 20, 90, 50)
+        wm_corner = "Center" # Placeholder
+        wm_opacity = st.slider("Opacity (%)", 10, 100, 30, help="Lower is better for center watermarks")
+    else: # Tiled
+        wm_scale = st.slider("Tile Size (%)", 5, 30, 10)
+        wm_corner = "Tiled" # Placeholder
+        wm_opacity = st.slider("Opacity (%)", 5, 100, 15, help="Lower is better for patterns")
+        
+    st.divider()
+    with st.expander("🛠️ Advanced"):
+        wm_padding = st.slider("Edge Padding (%)", 0, 10, 2)
+        wm_threshold = st.slider("Contrast Threshold", 0, 255, 128)
+        out_fmt = st.radio("Format", ["JPG", "PNG"], horizontal=True)
+
+    # Dictionary to pass around easily
+    current_settings = {
+        'style': wm_style, 'corner': wm_corner, 'scale': wm_scale,
+        'padding': wm_padding, 'threshold': wm_threshold, 'opacity': wm_opacity
+    }
+
+# --- 6. MAIN TABS ---
+st.title(f"🛡️ AutoBrand: {wm_style} Mode")
+
+tab1, tab2 = st.tabs(["📤 Upload & Process", "👁️ Review & Download"])
+
+with tab1:
+    col1, col2 = st.columns(2)
+    with col1:
+        u_files = st.file_uploader("Upload Bulk Images", type=['jpg','png','jpeg','webp'], accept_multiple_files=True)
+    with col2:
+        b_logo_file = st.file_uploader("Upload BLACK Logo", type=['png'])
+        w_logo_file = st.file_uploader("Upload WHITE Logo", type=['png'])
+
+    if u_files and b_logo_file and w_logo_file:
+        st.divider()
+        if st.button("🚀 Apply Watermarks", type="primary"):
+            b_logo = Image.open(b_logo_file)
+            w_logo = Image.open(w_logo_file)
+            
+            st.session_state.processed_images = {}
+            
+            progress = st.progress(0)
+            for i, f in enumerate(u_files):
+                f.seek(0)
+                img, color = process_single_image(f, b_logo, w_logo, current_settings)
+                
+                st.session_state.processed_images[f.name] = {
+                    "original": f, "processed": img, "color": color, 
+                    "logos": (b_logo, w_logo), "include": True
+                }
+                progress.progress((i+1)/len(u_files))
+            
+            st.session_state.review_mode = True
+            st.success("Done! Switch to the Review tab.")
+
+with tab2:
+    if st.session_state.review_mode:
+        # Metrics
+        total = len(st.session_state.processed_images)
+        st.caption(f"Reviewing {total} images. Style applied: {wm_style}")
+        
+        # Grid
+        items = list(st.session_state.processed_images.items())
+        for i in range(0, len(items), 3):
+            cols = st.columns(3)
+            for j in range(3):
+                if i+j < len(items):
+                    name, data = items[i+j]
+                    with cols[j]:
+                        with st.container(border=True):
+                            # Display
+                            show_img = data["processed"] if data["include"] else ImageOps.grayscale(data["processed"])
+                            st.image(show_img, use_container_width=True)
+                            
+                            # Controls
+                            c1, c2 = st.columns([2, 1])
+                            new_c = c1.radio("Color", ["Black", "White"], 
+                                             index=0 if data["color"]=="Black" else 1, 
+                                             key=f"r_{name}", horizontal=True, label_visibility="collapsed")
+                            keep = c2.checkbox("Keep", value=data["include"], key=f"c_{name}")
+                            
+                            # Update Logic
+                            if keep != data["include"]:
+                                st.session_state.processed_images[name]["include"] = keep
+                                st.rerun()
+                                
+                            if new_c != data["color"] and keep:
+                                f_obj = data["original"]
+                                f_obj.seek(0)
+                                b, w = data["logos"]
+                                # Reprocess with override
+                                new_img, _ = process_single_image(f_obj, b, w, current_settings, manual_override=new_c)
+                                st.session_state.processed_images[name]["processed"] = new_img
+                                st.session_state.processed_images[name]["color"] = new_c
+                                st.rerun()
+
+        # Download
+        st.divider()
+        cnt = sum(1 for x in st.session_state.processed_images.values() if x['include'])
+        if cnt > 0:
+            z_buf = io.BytesIO()
+            with zipfile.ZipFile(z_buf, "w") as zf:
+                for n, d in st.session_state.processed_images.items():
+                    if d['include']:
+                        buf = io.BytesIO()
+                        d['processed'] = d['processed'].convert("RGB") if out_fmt == "JPG" else d['processed']
+                        d['processed'].save(buf, format="JPEG" if out_fmt=="JPG" else "PNG", quality=95)
+                        zf.writestr(f"branded_{n.rsplit('.',1)[0]}.{out_fmt.lower()}", buf.getvalue())
+            
+            st.download_button(f"📥 Download {cnt} Images", z_buf.getvalue(), "branded_batch.zip", "application/zip", type="primary")
+                                
