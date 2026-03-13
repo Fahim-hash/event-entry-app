@@ -300,6 +300,131 @@ if menu == "🔍 Search & Entry":
                         if safe_update("Data", st.session_state.df):
                             st.success(f"Removed from {row['Bus_Number']}!"); time.sleep(0.5); st.rerun()
 
+                # --- 🔥 NEW: UDVASH STYLE FOLDABLE CARD GENERATOR 🔥 ---
+                st.markdown("---")
+                st.subheader("🪪 Print Event Pass")
+                
+                card_html = f"""
+                <html>
+                <head>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        display: flex;
+                        justify-content: center;
+                        padding-top: 20px;
+                        background-color: #f0f0f0;
+                    }}
+                    .card-container {{
+                        width: 320px;
+                        height: 640px;
+                        background: white;
+                        border: 1px solid #ccc;
+                        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                    }}
+                    .front, .back {{
+                        height: 320px;
+                        padding: 20px;
+                        box-sizing: border-box;
+                    }}
+                    .back {{
+                        border-top: 2px dashed #888;
+                        transform: rotate(180deg);
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: flex-end;
+                        align-items: center;
+                    }}
+                    .header {{
+                        text-align: center;
+                        font-weight: bold;
+                        font-size: 16px;
+                        border-bottom: 2px solid #333;
+                        padding-bottom: 10px;
+                        margin-bottom: 15px;
+                    }}
+                    .info-section {{
+                        display: flex;
+                        gap: 15px;
+                        margin-bottom: 20px;
+                    }}
+                    .photo-box {{
+                        width: 80px;
+                        height: 95px;
+                        border: 1px solid #aaa;
+                        background-color: #eee;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 12px;
+                        color: #666;
+                    }}
+                    .details table {{ font-size: 13px; font-weight: bold; color: #333; width: 100%; }}
+                    .details td {{ padding: 3px 0; }}
+                    .details td:first-child {{ width: 50px; color: #666; font-weight: normal; }}
+                    .footer-info {{
+                        font-size: 12px;
+                        color: #444;
+                        margin-top: 10px;
+                    }}
+                    .back-text {{
+                        font-size: 11px;
+                        text-align: center;
+                        color: #333;
+                        line-height: 1.5;
+                        padding-bottom: 10px;
+                    }}
+                </style>
+                </head>
+                <body>
+                    <div class="card-container">
+                        <div class="front">
+                            <div class="header">Willian's 26 Event Pass</div>
+                            <div class="info-section">
+                                <div class="photo-box">Photo</div>
+                                <div class="details">
+                                    <table cellspacing="0" cellpadding="0">
+                                        <tr><td>Name</td><td>: {row['Name']}</td></tr>
+                                        <tr><td>Ticket</td><td>: {row['Ticket_Number']}</td></tr>
+                                        <tr><td>Role</td><td>: {row['Role']}</td></tr>
+                                        <tr><td>Class</td><td>: {row['Class']}</td></tr>
+                                        <tr><td>Bus</td><td>: {row['Bus_Number']}</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="footer-info">
+                                <b>Event Date:</b> 3rd Feb 2026<br>
+                                <b>Time:</b> 10:00 AM To 5:00 PM<br>
+                                <b>Venue:</b> Willes Little Flower Campus
+                            </div>
+                        </div>
+                        
+                        <div class="back">
+                            <div class="back-text">
+                                <b>If this card is found, please return to:</b><br><br>
+                                Willian's 26 Organizing Committee<br>
+                                Dhaka, Bangladesh<br>
+                                Phone: {row['Spot Phone']}<br>
+                                www.willians26.com
+                            </div>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() {{ window.print(); }}
+                    </script>
+                </body>
+                </html>
+                """
+                
+                st.download_button(
+                    label=f"🖨️ Download Printable Card for {row['Name']}",
+                    data=card_html,
+                    file_name=f"ID_Card_{row['Ticket_Number']}.html",
+                    mime="text/html",
+                    type="primary"
+                )
+                # ------------------------------------------------------------
+
             with col2:
                 with st.container(border=True):
                     st.subheader("✏️ Update Details")
